@@ -1,0 +1,11 @@
+{
+  "name": "smarthome-functions",
+  "description": "Cloud Functions for Smart Home safety cutoffs and scheduled lighting",
+  "engines": { "node": "20" },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^12.3.1",
+    "firebase-functions": "^5.0.1"
+  },
+  "private": true
+}

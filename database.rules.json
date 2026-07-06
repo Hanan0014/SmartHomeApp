@@ -1,0 +1,8 @@
+{
+  "rules": {
+    "floors": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}
