@@ -12,7 +12,6 @@
 *.aab
 
 # Firebase
-google-services.json
 functions/node_modules/
 functions/.env
 *.log
