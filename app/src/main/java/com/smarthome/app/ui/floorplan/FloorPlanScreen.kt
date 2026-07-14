@@ -4,9 +4,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -48,7 +51,7 @@ fun FloorPlanScreen(
                 title = { Text(floor.name) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -85,7 +88,7 @@ fun FloorPlanScreen(
                 }
             }
 
-            Divider()
+            HorizontalDivider()
 
             // Device list (easier interaction than tapping tiny grid cells)
             LazyColumnDeviceList(devices, onToggle = { viewModel.toggleDevice(it) }, onSelect = onDeviceSelected)
@@ -116,7 +119,7 @@ private fun LazyColumnDeviceList(
         contentPadding = PaddingValues(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        androidx.compose.foundation.lazy.items(devices, key = { it.id }) { device ->
+        items(devices, key = { it.id }) { device ->
             DeviceRow(device, onToggle = { onToggle(device) }, onClick = { onSelect(device) })
         }
     }

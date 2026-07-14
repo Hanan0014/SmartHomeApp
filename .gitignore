@@ -4,7 +4,7 @@
 /local.properties
 /.idea/
 .DS_Store
-/build
+**/build/
 /captures
 .externalNativeBuild
 .cxx
@@ -12,7 +12,6 @@
 *.aab
 
 # Firebase
-google-services.json
 functions/node_modules/
 functions/.env
 *.log
