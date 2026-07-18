@@ -22,7 +22,7 @@ import kotlinx.coroutines.tasks.await
  *    refresh/polling needed.
  */
 class SmartHomeRepository(
-    private val db: FirebaseDatabase = FirebaseDatabase.getInstance()
+    private val db: FirebaseDatabase = FirebaseDatabase.getInstance("https://smart-home-app-68cf4-default-rtdb.asia-southeast1.firebasedatabase.app")
 ) {
     private val floorsRef = db.getReference("floors")
 

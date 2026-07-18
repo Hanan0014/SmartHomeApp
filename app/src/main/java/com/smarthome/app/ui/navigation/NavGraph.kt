@@ -49,7 +49,7 @@ fun SmartHomeNavGraph(navController: NavHostController = rememberNavController()
             val device = selectedDevice ?: return@composable
             DeviceDetailScreen(
                 floorId = floor.id,
-                device = device,
+                initialDevice = device,
                 onBack = { navController.popBackStack() }
             )
         }

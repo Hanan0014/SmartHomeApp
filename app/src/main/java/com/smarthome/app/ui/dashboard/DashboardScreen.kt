@@ -62,9 +62,14 @@ fun DashboardScreen(
     if (showAddDialog) {
         AddFloorDialog(
             onDismiss = { showAddDialog = false },
-            onConfirm = { name ->
+            onConfirm = { name, planImage ->
                 viewModel.addFloor(
-                    Floor(id = UUID.randomUUID().toString(), name = name, order = floors.size)
+                    Floor(
+                        id = UUID.randomUUID().toString(),
+                        name = name,
+                        planImageName = planImage,
+                        order = floors.size
+                    )
                 )
                 showAddDialog = false
             }
@@ -72,22 +77,58 @@ fun DashboardScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddFloorDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+private fun AddFloorDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit) {
     var name by remember { mutableStateOf("") }
+    var selectedPlan by remember { mutableStateOf("floor_plan_1") }
+    var expanded by remember { mutableStateOf(false) }
+    val plans = listOf("floor_plan_1", "floor_plan_2")
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add Floor Plan") },
         text = {
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Floor name, e.g. Ground Floor") },
-                singleLine = true
-            )
+            Column {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Floor name, e.g. Ground Floor") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(16.dp))
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
+                    OutlinedTextField(
+                        value = selectedPlan,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Background Plan") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        plans.forEach { plan ->
+                            DropdownMenuItem(
+                                text = { Text(plan) },
+                                onClick = {
+                                    selectedPlan = plan
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
         },
         confirmButton = {
-            TextButton(onClick = { if (name.isNotBlank()) onConfirm(name) }) { Text("Add") }
+            TextButton(onClick = { if (name.isNotBlank()) onConfirm(name, selectedPlan) }) { Text("Add") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )

@@ -23,3 +23,12 @@ firestore-debug.log
 # Keystore
 *.jks
 *.keystore
+.gradle/
+.idea/
+local.properties
+build/
+*/build/
+captures/
+.externalNativeBuild/
+.cxx/
+*.iml

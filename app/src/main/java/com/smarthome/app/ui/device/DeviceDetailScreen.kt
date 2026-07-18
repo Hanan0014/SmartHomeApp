@@ -21,16 +21,20 @@ import kotlinx.coroutines.launch
 @Composable
 fun DeviceDetailScreen(
     floorId: String,
-    device: Device,
+    initialDevice: Device,
     onBack: () -> Unit,
-    repository: SmartHomeRepository = SmartHomeRepository()
+    repository: SmartHomeRepository = remember { SmartHomeRepository() }
 ) {
     val scope = rememberCoroutineScope()
+    val device by repository.observeDevice(floorId, initialDevice.id)
+        .collectAsState(initial = initialDevice)
+
+    val currentDevice = device ?: initialDevice
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(device.name) },
+                title = { Text(currentDevice.name) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -40,12 +44,12 @@ fun DeviceDetailScreen(
         }
     ) { padding ->
         Column(Modifier.padding(padding).padding(16.dp).fillMaxSize()) {
-            when (device.type) {
-                DeviceType.MULTI_SWITCH -> MultiSwitchPanel(floorId, device, repository, scope)
-                DeviceType.SCHEDULED_APPLIANCE -> ScheduledAppliancePanel(floorId, device, repository, scope)
-                DeviceType.LIGHT_SCHEDULE -> LightSchedulePanel(floorId, device, repository, scope)
-                DeviceType.CAMERA -> CameraPanel(device)
-                DeviceType.OUTLET -> OutletPanel(floorId, device, repository, scope)
+            when (currentDevice.type) {
+                DeviceType.MULTI_SWITCH -> MultiSwitchPanel(floorId, currentDevice, repository, scope)
+                DeviceType.SCHEDULED_APPLIANCE -> ScheduledAppliancePanel(floorId, currentDevice, repository, scope)
+                DeviceType.LIGHT_SCHEDULE -> LightSchedulePanel(floorId, currentDevice, repository, scope)
+                DeviceType.CAMERA -> CameraPanel(currentDevice)
+                DeviceType.OUTLET -> OutletPanel(floorId, currentDevice, repository, scope)
             }
         }
     }
@@ -91,8 +95,26 @@ private fun MultiSwitchPanel(floorId: String, device: Device, repo: SmartHomeRep
 
 @Composable
 private fun ScheduledAppliancePanel(floorId: String, device: Device, repo: SmartHomeRepository, scope: kotlinx.coroutines.CoroutineScope) {
+    var timeLeft by remember { mutableStateOf<Long?>(null) }
+
+    LaunchedEffect(device.status, device.turnedOnAtEpochMs) {
+        if (device.status == DeviceStatus.ON && device.turnedOnAtEpochMs != null && device.maxOnDurationSeconds != null) {
+            while (true) {
+                val elapsed = (System.currentTimeMillis() - device.turnedOnAtEpochMs) / 1000
+                val remaining = device.maxOnDurationSeconds - elapsed
+                timeLeft = if (remaining > 0) remaining else 0
+                kotlinx.coroutines.delay(1000)
+            }
+        } else {
+            timeLeft = null
+        }
+    }
+
     Text("Fire-hazard appliance", style = MaterialTheme.typography.titleMedium)
     Text("Status: ${device.status}")
+    if (timeLeft != null) {
+        Text("Safety cutoff in: ${timeLeft!! / 60}m ${timeLeft!! % 60}s", color = MaterialTheme.colorScheme.primary)
+    }
     Text("Max on-duration: ${device.maxOnDurationSeconds?.div(60) ?: "-"} min")
     Spacer(Modifier.height(8.dp))
     Text(
@@ -112,11 +134,32 @@ private fun LightSchedulePanel(floorId: String, device: Device, repo: SmartHomeR
     var end by remember { mutableStateOf(device.scheduleEnd ?: "23:00") }
     var enabled by remember { mutableStateOf(device.scheduleEnabled) }
 
+    LaunchedEffect(device.id) {
+        start = device.scheduleStart ?: "18:00"
+        end = device.scheduleEnd ?: "23:00"
+        enabled = device.scheduleEnabled
+    }
+
+    var error by remember { mutableStateOf<String?>(null) }
+
     Text("Automatic schedule", style = MaterialTheme.typography.titleMedium)
     Spacer(Modifier.height(12.dp))
-    OutlinedTextField(value = start, onValueChange = { start = it }, label = { Text("Start (HH:mm)") })
+    OutlinedTextField(
+        value = start,
+        onValueChange = { start = it; error = null },
+        label = { Text("Start (HH:mm)") },
+        isError = error != null
+    )
     Spacer(Modifier.height(8.dp))
-    OutlinedTextField(value = end, onValueChange = { end = it }, label = { Text("End (HH:mm)") })
+    OutlinedTextField(
+        value = end,
+        onValueChange = { end = it; error = null },
+        label = { Text("End (HH:mm)") },
+        isError = error != null
+    )
+    if (error != null) {
+        Text(error!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+    }
     Spacer(Modifier.height(8.dp))
     Row(verticalAlignment = Alignment.CenterVertically) {
         Switch(checked = enabled, onCheckedChange = { enabled = it })
@@ -124,13 +167,24 @@ private fun LightSchedulePanel(floorId: String, device: Device, repo: SmartHomeR
         Text("Enabled")
     }
     Spacer(Modifier.height(16.dp))
-    Button(onClick = { scope.launch { repo.updateSchedule(floorId, device.id, start, end, enabled) } }) {
+    Button(onClick = {
+        if (isValidTime(start) && isValidTime(end)) {
+            scope.launch { repo.updateSchedule(floorId, device.id, start, end, enabled) }
+        } else {
+            error = "Please enter valid times (e.g. 09:00, 22:30)"
+        }
+    }) {
         Text("Save Schedule")
     }
     Spacer(Modifier.height(24.dp))
     Button(onClick = { scope.launch { repo.toggleDevice(floorId, device) } }) {
         Text(if (device.status == DeviceStatus.ON) "Turn Off Now" else "Turn On Now")
     }
+}
+
+private fun isValidTime(time: String): Boolean {
+    val regex = Regex("^([01]\\d|2[0-3]):([0-5]\\d)$")
+    return regex.matches(time)
 }
 
 @Composable
