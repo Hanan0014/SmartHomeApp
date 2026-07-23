@@ -1,5 +1,11 @@
 package com.smarthome.app.ui.device
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.material3.Text
 import androidx.compose.material3.Switch
@@ -7,12 +13,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.Arrangement
 import java.lang.System.currentTimeMillis
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 
 import com.smarthome.app.data.model.Device
 import com.smarthome.app.data.model.DeviceStatus
+import com.smarthome.app.R
 
 
 @Composable
@@ -56,60 +72,207 @@ fun ScheduledApplianceControl(device: Device){
     }
 
 
-    Text(text = device.name)
-    Text(text = device.status.name)
+    Column(
 
-    Text(
-        text = if(device.maxOnDurationSeconds != null){
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(20.dp),
 
-            "Maximum ON Duration: ${device.maxOnDurationSeconds} seconds"
+        horizontalAlignment = Alignment.CenterHorizontally
 
-        }else{
+    ) {
 
-            "Maximum ON Duration: Not configured"
+        Card(
 
-        }
-    )
+            modifier = Modifier.fillMaxWidth(),
 
-    Text(
+            elevation = CardDefaults.cardElevation(
+                defaultElevation = 8.dp
+            )
 
-        text =
-            if(remainingSeconds.value != null){
+        ) {
 
-                "Remaining Time: ${formatTime(remainingSeconds.value!!)}"
+            Column(
 
-            }else{
+                modifier = Modifier.padding(20.dp),
 
-                "Remaining Time: Not available"
+                horizontalAlignment = Alignment.CenterHorizontally
+
+            ) {
+
+
+                Image(
+
+                    painter = painterResource(
+                        id = R.drawable.iron
+                    ),
+
+                    contentDescription = "Iron",
+
+                    modifier = Modifier
+                        .height(120.dp)
+
+                )
+
+
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
+
+
+                Text(
+
+                    text = device.name,
+
+                    style = MaterialTheme.typography.headlineSmall
+
+                )
+
+
+                Text(
+
+                    text = "Safety Scheduled Appliance",
+
+                    style = MaterialTheme.typography.bodyMedium
+
+                )
+
 
             }
 
-    )
+        }
 
 
-    if(remainingSeconds.value == 0L){
-
-        Text(
-            text = "Maximum ON duration reached"
+        Spacer(
+            modifier = Modifier.height(16.dp)
         )
 
-    }
+
+        Card(
+
+            modifier = Modifier.fillMaxWidth(),
+
+            elevation = CardDefaults.cardElevation(
+                defaultElevation = 4.dp
+            )
+
+        ) {
+
+            Column(
+
+                modifier = Modifier.padding(20.dp)
+
+            ) {
+
+                Text(
+
+                    text = "Safety Information",
+
+                    style = MaterialTheme.typography.titleMedium
+
+                )
 
 
-    Switch(
-
-        checked = isOn.value,
-
-        onCheckedChange = {
-
-            isOn.value = it
+                Spacer(
+                    modifier = Modifier.height(12.dp)
+                )
 
 
-            //**********we should update firebase here***************
+                Text(
+
+                    text =
+                        "Maximum ON Duration: ${device.maxOnDurationSeconds ?: "Not configured"} seconds"
+
+                )
+
+
+                Spacer(
+                    modifier = Modifier.height(8.dp)
+                )
+
+
+                Text(
+
+                    text =
+                        if (remainingSeconds.value != null) {
+
+                            "Remaining Time: ${formatTime(remainingSeconds.value!!)}"
+
+                        } else {
+
+                            "Remaining Time: Not available"
+
+                        }
+
+                )
+
+
+                if (remainingSeconds.value == 0L) {
+
+                    Text(
+                        text = "Maximum ON duration reached"
+                    )
+
+                }
+
+
+            }
 
         }
 
-    )
+
+        Spacer(
+            modifier = Modifier.height(16.dp)
+        )
+
+
+
+        Card(
+
+            modifier = Modifier.fillMaxWidth(),
+
+            elevation = CardDefaults.cardElevation(
+                defaultElevation = 4.dp
+            )
+
+        ) {
+
+            Row(
+
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+
+                horizontalArrangement = Arrangement.SpaceBetween,
+
+                verticalAlignment = Alignment.CenterVertically
+
+            ) {
+
+                Text(
+                    text = "Power Control"
+                )
+
+
+                Switch(
+
+                    checked = isOn.value,
+
+                    onCheckedChange = {
+
+                        isOn.value = it
+
+                        // Firebase update later
+
+                    }
+
+                )
+
+            }
+
+        }
+
+    }
 
 }
 

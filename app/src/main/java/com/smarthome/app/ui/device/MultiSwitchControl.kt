@@ -10,63 +10,125 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.Image
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.unit.dp
 
 
 import com.smarthome.app.data.model.Device
 import com.smarthome.app.data.model.DeviceStatus
+import com.smarthome.app.R
+import com.smarthome.app.ui.theme.StatusOn
+import com.smarthome.app.ui.theme.StatusOff
 
 
 @Composable
 fun MultiSwitchControl(device: Device){
 
-    Text(text = device.name)
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
 
-    Text(text = "Number of Switches: ${device.subSwitches.size}")
 
-    device.subSwitches.forEach { subSwitch ->
+        Image(
 
-        val isOn = remember {
+            painter = painterResource(
+                id = R.drawable.switch_board
+            ),
 
-            mutableStateOf(subSwitch.status == DeviceStatus.ON)
+            contentDescription = "Switch Board",
 
-        }
+            modifier = Modifier
+                .height(120.dp)
+                .fillMaxWidth()
 
-        Card() {
+        )
 
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+        Spacer(
+            modifier = Modifier.height(16.dp)
+        )
+
+
+        Text(
+
+            text = device.name,
+
+            style = MaterialTheme.typography.headlineSmall
+
+        )
+
+
+        Text(
+
+            text = "Multi Switch Board",
+
+            style = MaterialTheme.typography.bodyMedium
+
+        )
+
+
+        Spacer(
+            modifier = Modifier.height(8.dp)
+        )
+
+
+        Text(
+
+            text = "Total Switches: ${device.subSwitches.size}",
+
+            style = MaterialTheme.typography.bodyLarge
+
+        )
+
+
+        device.subSwitches.forEach { subSwitch ->
+
+            val isOn = remember {
+
+                mutableStateOf(subSwitch.status == DeviceStatus.ON)
+
+            }
+
+            Card() {
+
+                Column(
+                    modifier = Modifier.padding(16.dp)
                 ) {
 
-                    Text(text = subSwitch.label)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
 
-                    Switch(
+                        Text(text = subSwitch.label)
 
-                        checked = isOn.value,
+                        Switch(
 
-                        onCheckedChange = {
+                            checked = isOn.value,
 
-                            isOn.value = it
+                            onCheckedChange = {
 
-                        }
+                                isOn.value = it
 
-                    )
+                            }
+
+                        )
+
+                    }
+
+
+                    Text(text = subSwitch.status.name)
+
+                    Spacer(modifier = Modifier.height(16.dp))
 
                 }
-
-
-                Text(text = subSwitch.status.name)
-
-                Spacer(modifier = Modifier.height(16.dp))
 
             }
 
