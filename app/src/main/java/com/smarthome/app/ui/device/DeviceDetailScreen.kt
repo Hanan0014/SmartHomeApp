@@ -1,143 +1,104 @@
 package com.smarthome.app.ui.device
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.smarthome.app.data.model.Device
-import com.smarthome.app.data.model.DeviceStatus
 import com.smarthome.app.data.model.DeviceType
-import com.smarthome.app.data.repository.SmartHomeRepository
-import kotlinx.coroutines.launch
+import com.smarthome.app.ui.theme.BackgroundLight
+import com.smarthome.app.ui.theme.PrimaryBlue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeviceDetailScreen(
     floorId: String,
     device: Device,
-    onBack: () -> Unit,
-    repository: SmartHomeRepository = SmartHomeRepository()
+    onBack: () -> Unit
 ) {
-    val scope = rememberCoroutineScope()
+    // device.id is stable even though the object itself is a point-in-time
+    // snapshot from the floor plan list — the ViewModel below takes over
+    // observing live state keyed on that id.
+    val viewModel: DeviceDetailViewModel = viewModel(
+        key = device.id,
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
+                DeviceDetailViewModel(floorId, device.id) as T
+        }
+    )
+
+    // Live device from Firebase; falls back to the snapshot passed in until
+    // the first Firebase read lands, so the screen never shows blank.
+    val liveDevice by viewModel.device.collectAsState()
+    val currentDevice = liveDevice ?: device
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(device.name) },
+                title = { Text(text = currentDevice.name, color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = PrimaryBlue)
             )
         }
-    ) { padding ->
-        Column(Modifier.padding(padding).padding(16.dp).fillMaxSize()) {
-            when (device.type) {
-                DeviceType.MULTI_SWITCH -> MultiSwitchPanel(floorId, device, repository, scope)
-                DeviceType.SCHEDULED_APPLIANCE -> ScheduledAppliancePanel(floorId, device, repository, scope)
-                DeviceType.LIGHT_SCHEDULE -> LightSchedulePanel(floorId, device, repository, scope)
-                DeviceType.CAMERA -> CameraPanel(device)
-                DeviceType.OUTLET -> OutletPanel(floorId, device, repository, scope)
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(BackgroundLight)
+                .padding(paddingValues)
+                .padding(16.dp)
+        ) {
+            if (liveDevice == null) {
+                // Device was deleted from Firebase (e.g. floor cleanup) while
+                // this screen was open — show that clearly instead of a stale
+                // control that silently does nothing when toggled.
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("This device is no longer available.")
+                }
+                return@Column
             }
-        }
-    }
-}
 
-@Composable
-private fun OutletPanel(floorId: String, device: Device, repo: SmartHomeRepository, scope: kotlinx.coroutines.CoroutineScope) {
-    Text("Status: ${device.status}", style = MaterialTheme.typography.titleMedium)
-    Spacer(Modifier.height(16.dp))
-    Button(onClick = { scope.launch { repo.toggleDevice(floorId, device) } }) {
-        Text(if (device.status == DeviceStatus.ON) "Turn Off" else "Turn On")
-    }
-}
-
-@Composable
-private fun MultiSwitchPanel(floorId: String, device: Device, repo: SmartHomeRepository, scope: kotlinx.coroutines.CoroutineScope) {
-    Text("Gang-box unit — ${device.subSwitches.size} switches", style = MaterialTheme.typography.titleMedium)
-    Spacer(Modifier.height(12.dp))
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(device.subSwitches, key = { it.id }) { sub ->
-            ElevatedCard(Modifier.fillMaxWidth()) {
-                Row(
-                    Modifier.fillMaxWidth().padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(sub.label)
-                    Switch(
-                        checked = sub.status == DeviceStatus.ON,
-                        onCheckedChange = { checked ->
-                            scope.launch {
-                                repo.toggleSubSwitch(
-                                    floorId, device.id, sub.id,
-                                    if (checked) DeviceStatus.ON else DeviceStatus.OFF
-                                )
-                            }
-                        }
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                shape = MaterialTheme.shapes.large,
+                tonalElevation = 3.dp
+            ) {
+                when (currentDevice.type) {
+                    DeviceType.OUTLET -> OutletControl(
+                        device = currentDevice,
+                        onToggle = { viewModel.toggleDevice() }
                     )
+                    DeviceType.MULTI_SWITCH -> MultiSwitchControl(
+                        device = currentDevice,
+                        onToggleSubSwitch = { id, status -> viewModel.toggleSubSwitch(id, status) }
+                    )
+                    DeviceType.SCHEDULED_APPLIANCE -> ScheduledApplianceControl(
+                        device = currentDevice,
+                        onToggle = { viewModel.toggleDevice() }
+                    )
+                    DeviceType.LIGHT_SCHEDULE -> LightScheduleControl(
+                        device = currentDevice,
+                        onSaveSchedule = { start, end, enabled -> viewModel.updateSchedule(start, end, enabled) }
+                    )
+                    DeviceType.CAMERA -> CameraControl(device = currentDevice)
                 }
             }
         }
     }
-}
-
-@Composable
-private fun ScheduledAppliancePanel(floorId: String, device: Device, repo: SmartHomeRepository, scope: kotlinx.coroutines.CoroutineScope) {
-    Text("Fire-hazard appliance", style = MaterialTheme.typography.titleMedium)
-    Text("Status: ${device.status}")
-    Text("Max on-duration: ${device.maxOnDurationSeconds?.div(60) ?: "-"} min")
-    Spacer(Modifier.height(8.dp))
-    Text(
-        "This device is protected by a server-side safety cutoff. If it stays ON " +
-            "past its max duration, the backend will automatically turn it off and alert you.",
-        style = MaterialTheme.typography.bodySmall
-    )
-    Spacer(Modifier.height(16.dp))
-    Button(onClick = { scope.launch { repo.toggleDevice(floorId, device) } }) {
-        Text(if (device.status == DeviceStatus.ON) "Turn Off" else "Turn On")
-    }
-}
-
-@Composable
-private fun LightSchedulePanel(floorId: String, device: Device, repo: SmartHomeRepository, scope: kotlinx.coroutines.CoroutineScope) {
-    var start by remember { mutableStateOf(device.scheduleStart ?: "18:00") }
-    var end by remember { mutableStateOf(device.scheduleEnd ?: "23:00") }
-    var enabled by remember { mutableStateOf(device.scheduleEnabled) }
-
-    Text("Automatic schedule", style = MaterialTheme.typography.titleMedium)
-    Spacer(Modifier.height(12.dp))
-    OutlinedTextField(value = start, onValueChange = { start = it }, label = { Text("Start (HH:mm)") })
-    Spacer(Modifier.height(8.dp))
-    OutlinedTextField(value = end, onValueChange = { end = it }, label = { Text("End (HH:mm)") })
-    Spacer(Modifier.height(8.dp))
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Switch(checked = enabled, onCheckedChange = { enabled = it })
-        Spacer(Modifier.width(8.dp))
-        Text("Enabled")
-    }
-    Spacer(Modifier.height(16.dp))
-    Button(onClick = { scope.launch { repo.updateSchedule(floorId, device.id, start, end, enabled) } }) {
-        Text("Save Schedule")
-    }
-    Spacer(Modifier.height(24.dp))
-    Button(onClick = { scope.launch { repo.toggleDevice(floorId, device) } }) {
-        Text(if (device.status == DeviceStatus.ON) "Turn Off Now" else "Turn On Now")
-    }
-}
-
-@Composable
-private fun CameraPanel(device: Device) {
-    Icon(Icons.Default.Videocam, contentDescription = null, modifier = Modifier.size(48.dp))
-    Spacer(Modifier.height(12.dp))
-    Text("Mock camera feed", style = MaterialTheme.typography.titleMedium)
-    Text("Snapshot URL: ${device.snapshotUrl ?: "not configured"}", style = MaterialTheme.typography.bodySmall)
-    Text("Stream URI: ${device.streamUri ?: "not configured"}", style = MaterialTheme.typography.bodySmall)
 }
