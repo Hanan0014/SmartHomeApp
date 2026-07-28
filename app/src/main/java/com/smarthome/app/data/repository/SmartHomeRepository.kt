@@ -22,7 +22,9 @@ import kotlinx.coroutines.tasks.await
  *    refresh/polling needed.
  */
 class SmartHomeRepository(
-    private val db: FirebaseDatabase = FirebaseDatabase.getInstance()
+    private val db: FirebaseDatabase = FirebaseDatabase.getInstance(
+        "https://smart-home-app-68cf4-default-rtdb.asia-southeast1.firebasedatabase.app"
+    )
 ) {
     private val floorsRef = db.getReference("floors")
 
@@ -71,6 +73,16 @@ class SmartHomeRepository(
         floorsRef.child(floor.id).setValue(floor).await()
     }
 
+    /** Phase 2: rename a floor in place (used by the Dashboard's rename menu action). */
+    suspend fun renameFloor(floorId: String, newName: String) {
+        floorsRef.child(floorId).child("name").setValue(newName).await()
+    }
+
+    /** Phase 2: delete a floor and everything under it (its devices go too). */
+    suspend fun deleteFloor(floorId: String) {
+        floorsRef.child(floorId).removeValue().await()
+    }
+
     suspend fun addDevice(floorId: String, device: Device) {
         floorsRef.child(floorId).child("devices").child(device.id).setValue(device).await()
     }
@@ -81,7 +93,7 @@ class SmartHomeRepository(
         val ref = floorsRef.child(floorId).child("devices").child(device.id)
         val turningOn = device.status != com.smarthome.app.data.model.DeviceStatus.ON
         val newStatus = if (turningOn) com.smarthome.app.data.model.DeviceStatus.ON
-                        else com.smarthome.app.data.model.DeviceStatus.OFF
+        else com.smarthome.app.data.model.DeviceStatus.OFF
 
         val updates = mutableMapOf<String, Any?>(
             "status" to newStatus.name,

@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,6 +40,8 @@ fun DashboardScreen(onFloorSelected: (Floor) -> Unit, viewModel: DashboardViewMo
 
 
     var showAddDialog by remember { mutableStateOf(false) }
+    var floorPendingRename by remember { mutableStateOf<Floor?>(null) }
+    var floorPendingDelete by remember { mutableStateOf<Floor?>(null) }
 
     Scaffold(
 
@@ -95,6 +98,7 @@ fun DashboardScreen(onFloorSelected: (Floor) -> Unit, viewModel: DashboardViewMo
                     .padding(padding)
 
             ) {
+<<<<<<< HEAD
 
                 Text(
                     text = "Welcome Home",
@@ -254,6 +258,15 @@ fun DashboardScreen(onFloorSelected: (Floor) -> Unit, viewModel: DashboardViewMo
 
                     }
 
+=======
+                items(floors, key = { it.id }) { floor ->
+                    FloorCard(
+                        floor = floor,
+                        onClick = { onFloorSelected(floor) },
+                        onRenameClick = { floorPendingRename = floor },
+                        onDeleteClick = { floorPendingDelete = floor }
+                    )
+>>>>>>> 1a0fb62b9d0fdb8cd3b99f7e879d29cfd8c93baa
                 }
 
             }
@@ -275,6 +288,76 @@ fun DashboardScreen(onFloorSelected: (Floor) -> Unit, viewModel: DashboardViewMo
                 showAddDialog = false
             }
         )
+    }
+
+    floorPendingRename?.let { floor ->
+        RenameFloorDialog(
+            currentName = floor.name,
+            onDismiss = { floorPendingRename = null },
+            onConfirm = { newName ->
+                viewModel.renameFloor(floor.id, newName)
+                floorPendingRename = null
+            }
+        )
+    }
+
+    floorPendingDelete?.let { floor ->
+        AlertDialog(
+            onDismissRequest = { floorPendingDelete = null },
+            title = { Text("Delete \"${floor.name}\"?") },
+            text = { Text("This removes the floor and every device on it. This can't be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteFloor(floor.id)
+                    floorPendingDelete = null
+                }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { floorPendingDelete = null }) { Text("Cancel") }
+            }
+        )
+    }
+}
+
+@Composable
+private fun FloorCard(
+    floor: Floor,
+    onClick: () -> Unit,
+    onRenameClick: () -> Unit,
+    onDeleteClick: () -> Unit
+) {
+    var showMenu by remember { mutableStateOf(false) }
+
+    ElevatedCard(modifier = Modifier.fillMaxWidth().clickable { onClick() }) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(floor.name, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "${floor.gridCols} x ${floor.gridRows} grid",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            // Always-visible icon button -- no long-press or hidden gesture required.
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "Floor options")
+                }
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Rename") },
+                        onClick = { showMenu = false; onRenameClick() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete") },
+                        onClick = { showMenu = false; onDeleteClick() }
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -333,4 +416,32 @@ private fun AddFloorDialog(onDismiss: () -> Unit, onConfirm: (String, String) ->
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
+<<<<<<< HEAD
+=======
+}
+
+@Composable
+private fun RenameFloorDialog(
+    currentName: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var name by remember { mutableStateOf(currentName) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename Floor") },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Floor name") },
+                singleLine = true
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { if (name.isNotBlank()) onConfirm(name) }) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+>>>>>>> 1a0fb62b9d0fdb8cd3b99f7e879d29cfd8c93baa
 }

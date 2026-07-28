@@ -5,6 +5,10 @@ package com.smarthome.app.data.model
  * the abstract grid (gridCols x gridRows) is overlaid on top of it and devices
  * are placed at (gridX, gridY) cells within that grid.
  *
+ * `iconEmoji` is a lightweight thumbnail for the Dashboard list (Phase 2) —
+ * added ahead of Phase 3's real floor-plan images so the Dashboard has a
+ * visual identifier per floor without depending on drawable assets yet.
+ *
  * Firebase RTDB path: /floors/{floorId}
  */
 data class Floor(
@@ -13,5 +17,6 @@ data class Floor(
     val planImageName: String = "",   // drawable resource name, e.g. "floor_plan_1"
     val gridCols: Int = 8,
     val gridRows: Int = 6,
-    val order: Int = 0
+    val order: Int = 0,
+    val iconEmoji: String = "🏠"      // Dashboard thumbnail; user picks at creation
 )
