@@ -127,4 +127,31 @@ class SmartHomeRepository(
             )
         ).await()
     }
+
+    /**
+     * Client-side safety-cutoff fallback (see FloorPlanViewModel) — force a
+     * device OFF and record why, mirroring what functions/index.js does on
+     * the backend. Only used because our Firebase project is on the Spark
+     * tier and cannot run the real Cloud Function.
+     */
+    suspend fun forceOff(floorId: String, deviceId: String, reason: String) {
+        floorsRef.child(floorId).child("devices").child(deviceId).updateChildren(
+            mapOf(
+                "status" to com.smarthome.app.data.model.DeviceStatus.OFF.name,
+                "turnedOnAtEpochMs" to null,
+                "lastToggledAtEpochMs" to System.currentTimeMillis(),
+                "lastCutoffReason" to reason
+            )
+        ).await()
+    }
+
+    /** Client-side light-schedule fallback — same idea as forceOff above. */
+    suspend fun setScheduledStatus(floorId: String, deviceId: String, status: com.smarthome.app.data.model.DeviceStatus) {
+        floorsRef.child(floorId).child("devices").child(deviceId).updateChildren(
+            mapOf(
+                "status" to status.name,
+                "lastToggledAtEpochMs" to System.currentTimeMillis()
+            )
+        ).await()
+    }
 }
