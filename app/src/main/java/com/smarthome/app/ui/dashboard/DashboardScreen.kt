@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,6 +21,7 @@ import java.util.UUID
 @Composable
 fun DashboardScreen(
     onFloorSelected: (Floor) -> Unit,
+    onReportsClick: () -> Unit,
     viewModel: DashboardViewModel = viewModel()
 ) {
     val floors by viewModel.floors.collectAsState()
@@ -28,7 +30,16 @@ fun DashboardScreen(
     var floorPendingDelete by remember { mutableStateOf<Floor?>(null) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Smart Home") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Smart Home") },
+                actions = {
+                    IconButton(onClick = onReportsClick) {
+                        Icon(Icons.Default.Assessment, contentDescription = "Usage Reports")
+                    }
+                }
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Add floor")

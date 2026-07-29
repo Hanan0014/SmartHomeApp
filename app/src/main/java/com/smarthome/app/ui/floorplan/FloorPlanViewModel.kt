@@ -63,7 +63,11 @@ class FloorPlanViewModel(
                     if (device.status == DeviceStatus.ON && turnedOnAt != null) {
                         val elapsedSeconds = (now - turnedOnAt) / 1000
                         if (elapsedSeconds >= maxDuration) {
-                            repository.forceOff(floorId, device.id, "exceeded max on-duration of ${maxDuration}s")
+                            repository.forceOff(
+                                floorId, device.id,
+                                "exceeded max on-duration of ${maxDuration}s",
+                                sessionStartEpochMs = turnedOnAt
+                            )
                         }
                     }
                 }
