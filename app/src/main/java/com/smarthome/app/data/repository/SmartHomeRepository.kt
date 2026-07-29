@@ -21,6 +21,13 @@ import kotlinx.coroutines.tasks.await
  *    safety-cutoff worker) is pushed to the UI automatically — no manual
  *    refresh/polling needed.
  */
+/** Pairs a Device with its parent floor's name — used by the Reports screen
+ *  which needs to show devices from across every floor at once. */
+data class DeviceWithFloor(
+    val device: Device,
+    val floorName: String
+)
+
 class SmartHomeRepository(
     private val db: FirebaseDatabase = FirebaseDatabase.getInstance(
         "https://smart-home-app-68cf4-default-rtdb.asia-southeast1.firebasedatabase.app"
@@ -87,22 +94,59 @@ class SmartHomeRepository(
         floorsRef.child(floorId).child("devices").child(device.id).setValue(device).await()
     }
 
-    /** Simple ON/OFF toggle for outlets and lights. Stamps turnedOnAtEpochMs for
-     *  safety-critical devices so the Cloud Function can enforce max_on_duration. */
+    /** Simple ON/OFF toggle for outlets and lights. Stamps turnedOnAtEpochMs
+     *  whenever a device turns ON (used both for safety cutoff and for
+     *  Phase 6 reporting), and accumulates totalOnTimeSeconds whenever it
+     *  turns OFF, based on how long it was actually ON for. */
     suspend fun toggleDevice(floorId: String, device: Device) {
         val ref = floorsRef.child(floorId).child("devices").child(device.id)
         val turningOn = device.status != com.smarthome.app.data.model.DeviceStatus.ON
         val newStatus = if (turningOn) com.smarthome.app.data.model.DeviceStatus.ON
         else com.smarthome.app.data.model.DeviceStatus.OFF
+        val now = System.currentTimeMillis()
 
         val updates = mutableMapOf<String, Any?>(
             "status" to newStatus.name,
-            "lastToggledAtEpochMs" to System.currentTimeMillis()
+            "lastToggledAtEpochMs" to now
         )
-        if (device.isSafetyCritical()) {
-            updates["turnedOnAtEpochMs"] = if (turningOn) System.currentTimeMillis() else null
+
+        if (turningOn) {
+            updates["turnedOnAtEpochMs"] = now
+        } else {
+            updates["turnedOnAtEpochMs"] = null
+            val sessionStart = device.turnedOnAtEpochMs
+            if (sessionStart != null) {
+                val elapsedSeconds = (now - sessionStart) / 1000
+                updates["totalOnTimeSeconds"] = device.totalOnTimeSeconds + elapsedSeconds
+            }
         }
         ref.updateChildren(updates).await()
+    }
+
+    /**
+     * Live stream of every device across every floor, paired with its
+     * floor's name for display. Powers the Phase 6 Reports screen, which
+     * needs a global view rather than one floor at a time like
+     * observeDevices() above.
+     */
+    fun observeAllDevices(): Flow<List<DeviceWithFloor>> = callbackFlow {
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val result = mutableListOf<DeviceWithFloor>()
+                for (floorSnap in snapshot.children) {
+                    val floorName = floorSnap.child("name").getValue(String::class.java) ?: "Unknown Floor"
+                    val devicesSnap = floorSnap.child("devices")
+                    for (deviceSnap in devicesSnap.children) {
+                        val device = deviceSnap.getValue(Device::class.java) ?: continue
+                        result.add(DeviceWithFloor(device, floorName))
+                    }
+                }
+                trySend(result)
+            }
+            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+        }
+        floorsRef.addValueEventListener(listener)
+        awaitClose { floorsRef.removeEventListener(listener) }
     }
 
     /** Toggle one sub-switch inside a multi-switch gang-box unit. */
@@ -132,17 +176,27 @@ class SmartHomeRepository(
      * Client-side safety-cutoff fallback (see FloorPlanViewModel) — force a
      * device OFF and record why, mirroring what functions/index.js does on
      * the backend. Only used because our Firebase project is on the Spark
-     * tier and cannot run the real Cloud Function.
+     * tier and cannot run the real Cloud Function. Also accumulates
+     * totalOnTimeSeconds, same as a normal toggle-off, so Reports stays
+     * accurate even when a device is cut off automatically rather than by
+     * the user.
      */
-    suspend fun forceOff(floorId: String, deviceId: String, reason: String) {
-        floorsRef.child(floorId).child("devices").child(deviceId).updateChildren(
-            mapOf(
-                "status" to com.smarthome.app.data.model.DeviceStatus.OFF.name,
-                "turnedOnAtEpochMs" to null,
-                "lastToggledAtEpochMs" to System.currentTimeMillis(),
-                "lastCutoffReason" to reason
-            )
-        ).await()
+    suspend fun forceOff(floorId: String, deviceId: String, reason: String, sessionStartEpochMs: Long? = null) {
+        val now = System.currentTimeMillis()
+        val updates = mutableMapOf<String, Any?>(
+            "status" to com.smarthome.app.data.model.DeviceStatus.OFF.name,
+            "turnedOnAtEpochMs" to null,
+            "lastToggledAtEpochMs" to now,
+            "lastCutoffReason" to reason
+        )
+        if (sessionStartEpochMs != null) {
+            val elapsedSeconds = (now - sessionStartEpochMs) / 1000
+            floorsRef.child(floorId).child("devices").child(deviceId).child("totalOnTimeSeconds").get().await()
+                .getValue(Long::class.java)?.let { current ->
+                    updates["totalOnTimeSeconds"] = current + elapsedSeconds
+                } ?: run { updates["totalOnTimeSeconds"] = elapsedSeconds }
+        }
+        floorsRef.child(floorId).child("devices").child(deviceId).updateChildren(updates).await()
     }
 
     /** Client-side light-schedule fallback — same idea as forceOff above. */
