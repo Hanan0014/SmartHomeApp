@@ -72,81 +72,6 @@ fun OutletControl(device: Device, onToggle: () -> Unit) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-<<<<<<< HEAD
-
-                    Text(
-                        text = "Power"
-                    )
-
-                    Switch(
-                        checked = isOn.value,
-                        onCheckedChange = {
-                            isOn.value = it
-                        }
-                    )
-
-                }
-
-            }
-
-        }
-
-        Spacer(
-            modifier = Modifier.height(16.dp)
-        )
-
-
-        Card(
-
-            modifier = Modifier.fillMaxWidth(),
-
-            elevation = CardDefaults.cardElevation(
-                defaultElevation = 4.dp
-            )
-
-        ){
-
-            Column(
-
-                modifier = Modifier.padding(20.dp)
-
-            ){
-
-                Text(
-
-                    text = "Device Information",
-
-                    style = MaterialTheme.typography.titleMedium
-
-                )
-
-
-                Spacer(
-                    modifier = Modifier.height(12.dp)
-                )
-
-
-                Text(
-                    text = "Type: Electrical Outlet"
-                )
-
-
-                Text(
-                    text = "Location: Living Room"
-                )
-
-
-                Text(
-                    text = "Connection: Online"
-                )
-
-            }
-
-        }
-
-    }
-
-=======
                     Text(text = "Power")
                     Switch(
                         // Toggle is disabled if the device is reporting ERROR or
@@ -179,5 +104,4 @@ fun OutletControl(device: Device, onToggle: () -> Unit) {
             }
         }
     }
->>>>>>> 1a0fb62b9d0fdb8cd3b99f7e879d29cfd8c93baa
 }

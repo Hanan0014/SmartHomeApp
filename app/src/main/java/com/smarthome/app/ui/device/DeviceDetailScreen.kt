@@ -45,9 +45,7 @@ fun DeviceDetailScreen(
     val currentDevice = liveDevice ?: device
 
     Scaffold(
-
         topBar = {
-
             TopAppBar(
                 title = { Text(text = currentDevice.name, color = Color.White) },
                 navigationIcon = {
