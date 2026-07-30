@@ -10,11 +10,13 @@ import com.smarthome.app.data.model.Floor
 import com.smarthome.app.ui.dashboard.DashboardScreen
 import com.smarthome.app.ui.device.DeviceDetailScreen
 import com.smarthome.app.ui.floorplan.FloorPlanScreen
+import com.smarthome.app.ui.reports.ReportsScreen
 
 private object Routes {
     const val DASHBOARD = "dashboard"
     const val FLOOR_PLAN = "floor_plan"
     const val DEVICE_DETAIL = "device_detail"
+    const val REPORTS = "reports"
 }
 
 /**
@@ -28,10 +30,13 @@ private var selectedDevice: Device? = null
 fun SmartHomeNavGraph(navController: NavHostController = rememberNavController()) {
     NavHost(navController = navController, startDestination = Routes.DASHBOARD) {
         composable(Routes.DASHBOARD) {
-            DashboardScreen(onFloorSelected = { floor ->
-                selectedFloor = floor
-                navController.navigate(Routes.FLOOR_PLAN)
-            })
+            DashboardScreen(
+                onFloorSelected = { floor ->
+                    selectedFloor = floor
+                    navController.navigate(Routes.FLOOR_PLAN)
+                },
+                onReportsClick = { navController.navigate(Routes.REPORTS) }
+            )
         }
         composable(Routes.FLOOR_PLAN) {
             val floor = selectedFloor ?: return@composable
@@ -52,6 +57,9 @@ fun SmartHomeNavGraph(navController: NavHostController = rememberNavController()
                 device = device,
                 onBack = { navController.popBackStack() }
             )
+        }
+        composable(Routes.REPORTS) {
+            ReportsScreen(onBack = { navController.popBackStack() })
         }
     }
 }
