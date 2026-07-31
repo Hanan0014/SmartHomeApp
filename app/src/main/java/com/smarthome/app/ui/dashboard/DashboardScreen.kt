@@ -15,58 +15,78 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.smarthome.app.data.model.Floor
+import com.smarthome.app.ui.dashboard.components.DashboardHeader
+import com.smarthome.app.ui.components.SmartHomeBackground
+import com.smarthome.app.ui.theme.PrimaryCyan
 import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
+
     onFloorSelected: (Floor) -> Unit,
     onReportsClick: () -> Unit,
     viewModel: DashboardViewModel = viewModel()
+
 ) {
+
     val floors by viewModel.floors.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var floorPendingRename by remember { mutableStateOf<Floor?>(null) }
     var floorPendingDelete by remember { mutableStateOf<Floor?>(null) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Smart Home") },
-                actions = {
-                    IconButton(onClick = onReportsClick) {
-                        Icon(Icons.Default.Assessment, contentDescription = "Usage Reports")
-                    }
-                }
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Add floor")
-            }
-        }
-    ) { padding ->
-        if (floors.isEmpty()) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("No floors yet. Tap + to add your first floor plan.")
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(floors, key = { it.id }) { floor ->
-                    FloorCard(
-                        floor = floor,
-                        onClick = { onFloorSelected(floor) },
-                        onRenameClick = { floorPendingRename = floor },
-                        onDeleteClick = { floorPendingDelete = floor }
+    SmartHomeBackground {
+
+        Scaffold(
+
+            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+
+            floatingActionButton = {
+
+                FloatingActionButton(
+
+                    onClick = {
+                        showAddDialog = true
+                    },
+                    containerColor = PrimaryCyan
+                    
+                ){
+
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "Add floor"
                     )
+
                 }
+
             }
+
+        ) { padding ->
+
+            Column(
+
+                modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+
+            ){
+
+                DashboardHeader(
+
+                    unreadCount = 3,
+                    onNotificationClick = {
+
+                    }
+
+                )
+
+            }
+
         }
+
     }
+
+    
 
     if (showAddDialog) {
         AddFloorDialog(
