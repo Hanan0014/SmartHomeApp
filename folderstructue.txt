@@ -27,6 +27,13 @@ SMARTHOMEAPP
 |     |            |             |      |____dashboard/
 |     |            |             |      |        |____DashboardScreen.kt
 |     |            |             |      |        |____DashboardViewModel.kt
+|     |            |             |      |        |____components/
+|     |            |             |      |                 |____DashboardHeader.kt
+|     |            |             |      |                 |____StatsSection.kt
+|     |            |             |      |                 |____FloorCard.kt
+|     |            |             |      |                 |____RecentDevicesSection.kt
+|     |            |             |      |                 |____EnergySnapshot.kt
+|     |            |             |      |                 |____NotificationDrawer.kt
 |     |            |             |      |        
 |     |            |             |      |____device/
 |     |            |             |      |        |____CameraControl.kt
