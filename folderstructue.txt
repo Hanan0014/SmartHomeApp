@@ -21,6 +21,9 @@ SMARTHOMEAPP
 |     |            |             |     
 |     |            |             |      
 |     |            |             |____ui/
+|     |            |             |      |____auth/
+|     |            |             |      |        |____LoginScreen.kt
+|     |            |             |      |        
 |     |            |             |      |____dashboard/
 |     |            |             |      |        |____DashboardScreen.kt
 |     |            |             |      |        |____DashboardViewModel.kt
