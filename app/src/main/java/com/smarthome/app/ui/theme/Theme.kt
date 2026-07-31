@@ -13,8 +13,11 @@ private val LightColors = lightColorScheme(
 )
 
 private val DarkColors = darkColorScheme(
-    primary = PrimaryBlue,
-    background = PrimaryBlueDark
+    primary = PrimaryCyan,
+    background = BackgroundDark,
+    surface = SurfaceDark,
+    onBackground = TextPrimary,
+    onSurface = TextPrimary
 )
 
 @Composable
