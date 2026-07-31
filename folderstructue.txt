@@ -25,6 +25,7 @@ SMARTHOMEAPP
 |     |            |             |      |        |____LoginScreen.kt
 |     |            |             |      | 
 |     |            |             |      |____components/
+|     |            |             |      |        |____ScrollableScreen.kt
 |     |            |             |      |        |____SmartHomeBackground.kt
 |     |            |             |      |        
 |     |            |             |      |____dashboard/
