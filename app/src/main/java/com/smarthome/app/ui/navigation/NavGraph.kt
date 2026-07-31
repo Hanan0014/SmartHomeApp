@@ -11,8 +11,10 @@ import com.smarthome.app.ui.dashboard.DashboardScreen
 import com.smarthome.app.ui.device.DeviceDetailScreen
 import com.smarthome.app.ui.floorplan.FloorPlanScreen
 import com.smarthome.app.ui.reports.ReportsScreen
+import com.smarthome.app.ui.auth.LoginScreen
 
 private object Routes {
+    const val LOGIN = "login"
     const val DASHBOARD = "dashboard"
     const val FLOOR_PLAN = "floor_plan"
     const val DEVICE_DETAIL = "device_detail"
@@ -28,7 +30,20 @@ private var selectedDevice: Device? = null
 
 @Composable
 fun SmartHomeNavGraph(navController: NavHostController = rememberNavController()) {
-    NavHost(navController = navController, startDestination = Routes.DASHBOARD) {
+    NavHost(navController = navController, startDestination = Routes.LOGIN) {
+
+        composable(Routes.LOGIN) {
+            LoginScreen(
+                onLogin = {
+                    navController.navigate(Routes.DASHBOARD) {
+                        popUpTo(Routes.LOGIN) {
+                            inclusive = true
+                        }
+                    }
+                }
+            )
+        }
+
         composable(Routes.DASHBOARD) {
             DashboardScreen(
                 onFloorSelected = { floor ->
