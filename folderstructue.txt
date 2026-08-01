@@ -53,7 +53,10 @@ SMARTHOMEAPP
 |     |            |             |      |        |____FloorPlanViewModel.kt
 |     |            |             |      |       
 |     |            |             |      |____navigation/
+|     |            |             |      |        |____BottomNavBar.kt
+|     |            |             |      |        |____BottomNavItem.kt
 |     |            |             |      |        |____NavGraph.kt
+|     |            |             |      |        |____SmartHomeApp.kt
 |     |            |             |      |        
 |     |            |             |      |____reports/
 |     |            |             |      |        |____ReportsScreen.kt
