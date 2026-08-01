@@ -12,6 +12,7 @@ import com.smarthome.app.ui.device.DeviceDetailScreen
 import com.smarthome.app.ui.floorplan.FloorPlanScreen
 import com.smarthome.app.ui.reports.ReportsScreen
 import com.smarthome.app.ui.auth.LoginScreen
+import androidx.compose.ui.Modifier
 
 private object Routes {
     const val LOGIN = "login"
@@ -29,8 +30,9 @@ private var selectedFloor: Floor? = null
 private var selectedDevice: Device? = null
 
 @Composable
-fun SmartHomeNavGraph(navController: NavHostController = rememberNavController()) {
-    NavHost(navController = navController, startDestination = Routes.LOGIN) {
+fun SmartHomeNavGraph(navController: NavHostController, modifier: Modifier = Modifier) {
+
+    NavHost(navController = navController, startDestination = Routes.LOGIN, modifier = modifier) {
 
         composable(Routes.LOGIN) {
             LoginScreen(
@@ -77,4 +79,5 @@ fun SmartHomeNavGraph(navController: NavHostController = rememberNavController()
             ReportsScreen(onBack = { navController.popBackStack() })
         }
     }
+
 }
