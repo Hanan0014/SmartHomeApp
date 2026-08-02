@@ -9,6 +9,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.smarthome.app.data.model.Floor
 import com.smarthome.app.ui.theme.*
+import androidx.compose.foundation.clickable
 
 
 @Composable
@@ -17,8 +18,13 @@ fun FloorCard(floor: Floor, deviceCount: Int, activeDevices: Int, onClick: () ->
     Surface(
 
         modifier = Modifier
-                  .fillMaxWidth(),
+            .fillMaxWidth()
+            .clickable {
+                onClick()
+            },
+
         shape = MaterialTheme.shapes.large,
+
         color = SurfaceDark
 
     ){

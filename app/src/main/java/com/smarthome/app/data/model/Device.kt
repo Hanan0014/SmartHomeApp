@@ -32,6 +32,7 @@ data class Device(
     // Scheduled / fire-hazard appliances (irons, etc.)
     val maxOnDurationSeconds: Long? = null,
     val turnedOnAtEpochMs: Long? = null,
+    val power: Int?,
 
     // Light schedule window (HH:mm 24h strings)
     val scheduleStart: String? = null,

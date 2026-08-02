@@ -1,18 +1,23 @@
 package com.smarthome.app.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.smarthome.app.data.model.Device
-import com.smarthome.app.data.model.Floor
+import androidx.lifecycle.viewmodel.compose.viewModel
+
+import com.smarthome.app.ui.dashboard.DashboardViewModel
 import com.smarthome.app.ui.dashboard.DashboardScreen
 import com.smarthome.app.ui.device.DeviceDetailScreen
 import com.smarthome.app.ui.floorplan.FloorPlanScreen
 import com.smarthome.app.ui.reports.ReportsScreen
 import com.smarthome.app.ui.auth.LoginScreen
-import androidx.compose.ui.Modifier
+import com.smarthome.app.data.model.Device
+import com.smarthome.app.data.model.Floor
+
 
 private object Routes {
     const val LOGIN = "login"
@@ -22,10 +27,7 @@ private object Routes {
     const val REPORTS = "reports"
 }
 
-/**
- * In-memory selection holders. For a mini-project this avoids the overhead
- * of Gson-serializing complex objects into nav route arguments.
- */
+
 private var selectedFloor: Floor? = null
 private var selectedDevice: Device? = null
 
@@ -51,14 +53,20 @@ fun SmartHomeNavGraph(navController: NavHostController, modifier: Modifier = Mod
                 onFloorSelected = { floor ->
                     selectedFloor = floor
                     navController.navigate(Routes.FLOOR_PLAN)
-                },
-                onReportsClick = { navController.navigate(Routes.REPORTS) }
+                }
             )
         }
         composable(Routes.FLOOR_PLAN) {
+
+            val dashboardViewModel: DashboardViewModel = viewModel()
+
+            val floors = dashboardViewModel.floors.collectAsState().value
+
             val floor = selectedFloor ?: return@composable
+
             FloorPlanScreen(
-                floor = floor,
+                floors = floors,
+                selectedFloor = floor,
                 onBack = { navController.popBackStack() },
                 onDeviceSelected = { device ->
                     selectedDevice = device

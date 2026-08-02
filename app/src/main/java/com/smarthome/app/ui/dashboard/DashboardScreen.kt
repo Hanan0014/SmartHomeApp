@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+
 import com.smarthome.app.data.model.Floor
 import com.smarthome.app.ui.components.ScrollableScreen
 import com.smarthome.app.ui.dashboard.components.DashboardHeader
@@ -18,21 +19,28 @@ import com.smarthome.app.ui.theme.TextPrimary
 import com.smarthome.app.ui.dashboard.components.FloorCard
 import java.util.UUID
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
 
     onFloorSelected: (Floor) -> Unit,
-    onReportsClick: () -> Unit,
     viewModel: DashboardViewModel = viewModel()
 
 ) {
 
     val floors by viewModel.floors.collectAsState()
+
+
+    LaunchedEffect(floors) {
+        println("Floors: $floors")
+    }
+
+
     var showAddDialog by remember { mutableStateOf(false) }
     var floorPendingRename by remember { mutableStateOf<Floor?>(null) }
     var floorPendingDelete by remember { mutableStateOf<Floor?>(null) }
-
+    0
     SmartHomeBackground {
 
         Scaffold(
@@ -47,7 +55,7 @@ fun DashboardScreen(
                         showAddDialog = true
                     },
                     containerColor = PrimaryCyan
-                    
+
                 ){
 
                     Icon(
@@ -64,8 +72,8 @@ fun DashboardScreen(
             ScrollableScreen(
 
                 modifier = Modifier
-                          .padding(padding)
-                          .padding(horizontal = 20.dp)
+                    .padding(padding)
+                    .padding(horizontal = 20.dp)
 
             ){
 
@@ -98,7 +106,7 @@ fun DashboardScreen(
 
                 floors.forEach { floor ->
 
-                     FloorCard(
+                    FloorCard(
 
                         floor = floor,
 
@@ -114,7 +122,7 @@ fun DashboardScreen(
 
                 }
 
-                
+
 
             }
 
@@ -122,7 +130,7 @@ fun DashboardScreen(
 
     }
 
-    
+
 
     if (showAddDialog) {
         AddFloorDialog(

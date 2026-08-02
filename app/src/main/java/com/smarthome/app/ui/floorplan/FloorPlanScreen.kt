@@ -26,138 +26,28 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.smarthome.app.R
+import com.smarthome.app.data.model.Device
+import com.smarthome.app.data.model.DeviceStatus
 import com.smarthome.app.ui.components.SmartHomeBackground
+import com.smarthome.app.data.model.Floor
 import com.smarthome.app.ui.components.ScrollableScreen
-s
+
 
 private const val GRID_ROWS = 6
 private const val GRID_COLS = 8
 
-data class DemoDevice(
-    val id: String,
-    val name: String,
-    val room: String,
-    val type: String,
-    val status: String,
-    val icon: String,
-    val gridX: Int,
-    val gridY: Int,
-    val power: Int? = null
-)
-
-data class DemoFloor(
-    val id: String,
-    val name: String,
-    val level: Int,
-    val image: Int,
-    val devices: List<DemoDevice>
-)
-
-private val groundFloor = DemoFloor(
-    id = "1",
-    name = "Ground Floor",
-    level = 1,
-    image = R.drawable.iron,
-    devices = listOf(
-        DemoDevice(
-            "1",
-            "Living Outlet",
-            "Living Room",
-            "OUTLET",
-            "ON",
-            "🔌",
-            1,
-            1,
-            120
-        ),
-        DemoDevice(
-            "2",
-            "Iron",
-            "Laundry",
-            "SCHEDULED",
-            "OFF",
-            "🔥",
-            3,
-            4
-        ),
-        DemoDevice(
-            "3",
-            "Front Camera",
-            "Entrance",
-            "CAMERA",
-            "ON",
-            "📷",
-            6,
-            2
-        ),
-        DemoDevice(
-            "4",
-            "Kitchen Light",
-            "Kitchen",
-            "LIGHT",
-            "ERROR",
-            "💡",
-            5,
-            5
-        ),
-        DemoDevice(
-            "5",
-            "Bedroom Switch",
-            "Bedroom",
-            "MULTI",
-            "DISCONNECTED",
-            "🎛️",
-            7,
-            1
-        )
-    )
-)
-
-private val firstFloor = DemoFloor(
-    id = "2",
-    name = "First Floor",
-    level = 2,
-    image = R.drawable.iron,
-    devices = listOf(
-        DemoDevice(
-            "6",
-            "Balcony Light",
-            "Balcony",
-            "LIGHT",
-            "ON",
-            "💡",
-            2,
-            2
-        ),
-        DemoDevice(
-            "7",
-            "Bedroom Camera",
-            "Bedroom",
-            "CAMERA",
-            "OFF",
-            "📷",
-            5,
-            4
-        )
-    )
-)
-
-private val floors = listOf(
-    groundFloor,
-    firstFloor
-)
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FloorPlanScreen(onBack: () -> Unit = {}, onDeviceClick: (String) -> Unit = {}){
+fun FloorPlanScreen(floors: List<Floor>, selectedFloor: Floor, onBack: () -> Unit = {}, onDeviceSelected: (Device) -> Unit = {}){
 
     var activeFloor by remember {
-        mutableStateOf(floors.first())
+        mutableStateOf(selectedFloor)
     }
 
-    var selectedDevice by remember {
-        mutableStateOf<DemoDevice?>(null)
+    var selectedDeviceOnFloor by remember {
+        mutableStateOf<Device?>(null)
     }
 
     SmartHomeBackground {
@@ -283,7 +173,7 @@ fun FloorPlanScreen(onBack: () -> Unit = {}, onDeviceClick: (String) -> Unit = {
                                 onClick = {
 
                                     activeFloor = floor
-                                    selectedDevice = null
+                                    selectedDeviceOnFloor = null
 
                                 },
 
@@ -323,7 +213,7 @@ fun FloorPlanScreen(onBack: () -> Unit = {}, onDeviceClick: (String) -> Unit = {
 
                                 Text(
 
-                                    text = "L${floor.level} · ${floor.name.split(" ")[0]}",
+                                    text = "${floor.name.split(" ")[0]}",
 
                                     fontSize = 16.sp
 
@@ -347,13 +237,7 @@ fun FloorPlanScreen(onBack: () -> Unit = {}, onDeviceClick: (String) -> Unit = {
                             .border(1.dp, Color.LightGray, RoundedCornerShape(20.dp))
                     ) {
 
-                        Image(
-                            painter = painterResource(activeFloor.image),
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop,
-                            alpha = 0.25f
-                        )
+
 
                         Column(
                             modifier = Modifier.fillMaxSize()
@@ -377,7 +261,7 @@ fun FloorPlanScreen(onBack: () -> Unit = {}, onDeviceClick: (String) -> Unit = {
                                                 .fillMaxHeight()
                                                 .border(0.5.dp, Color(0x3322D3EE))
                                                 .clickable {
-                                                    selectedDevice = device
+                                                    selectedDeviceOnFloor = device
                                                 },
                                             contentAlignment = Alignment.Center
                                         ) {
@@ -385,39 +269,20 @@ fun FloorPlanScreen(onBack: () -> Unit = {}, onDeviceClick: (String) -> Unit = {
                                             if (device != null) {
 
                                                 val color =
+
                                                     when (device.status) {
 
-                                                        "ON" -> Color(0xFF22C55E)
+                                                        DeviceStatus.ON -> Color(0xFF22C55E)
 
-                                                        "OFF" -> Color.Gray
+                                                        DeviceStatus.OFF -> Color.Gray
 
-                                                        "ERROR" -> Color.Red
+                                                        DeviceStatus.ERROR -> Color.Red
 
-                                                        else -> Color.Yellow
+                                                        DeviceStatus.DISCONNECTED -> Color.Yellow
 
                                                     }
 
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(34.dp)
-                                                        .background(
-                                                            color.copy(alpha = 0.15f),
-                                                            CircleShape
-                                                        )
-                                                        .border(
-                                                            2.dp,
-                                                            color,
-                                                            CircleShape
-                                                        ),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
 
-                                                    Text(
-                                                        device.icon,
-                                                        fontSize = 16.sp
-                                                    )
-
-                                                }
 
                                             }
 
@@ -475,7 +340,9 @@ fun FloorPlanScreen(onBack: () -> Unit = {}, onDeviceClick: (String) -> Unit = {
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                onDeviceClick(device.id)
+                                if (device != null) {
+                                    onDeviceSelected(device)
+                                }
                             },
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
@@ -494,21 +361,6 @@ fun FloorPlanScreen(onBack: () -> Unit = {}, onDeviceClick: (String) -> Unit = {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
 
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFF1E293B)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = device.icon,
-                                    fontSize = 18.sp
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.width(12.dp))
-
                             Column(
                                 modifier = Modifier.weight(1f)
                             ) {
@@ -521,7 +373,7 @@ fun FloorPlanScreen(onBack: () -> Unit = {}, onDeviceClick: (String) -> Unit = {
                                 )
 
                                 Text(
-                                    text = "${device.room} · ${device.type}",
+                                    text = "Device Type: ${device.type}",
                                     color = Color(0xFF94A3B8),
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.SemiBold
@@ -529,20 +381,12 @@ fun FloorPlanScreen(onBack: () -> Unit = {}, onDeviceClick: (String) -> Unit = {
 
                             }
 
-                            if (device.power != null && device.status == "ON") {
-                                Text(
-                                    text = "${device.power}W",
-                                    color = Color(0xFF94A3B8),
-                                    fontSize = 10.sp
-                                )
 
-                                Spacer(modifier = Modifier.width(8.dp))
-                            }
 
                             val statusColor = when (device.status) {
-                                "ON" -> Color(0xFF22C55E)
-                                "OFF" -> Color.Gray
-                                "ERROR" -> Color(0xFFEF4444)
+                                DeviceStatus.ON -> Color(0xFF22C55E)
+                                DeviceStatus.OFF -> Color.Gray
+                                DeviceStatus.ERROR -> Color(0xFFEF4444)
                                 else -> Color(0xFFEAB308)
                             }
 
