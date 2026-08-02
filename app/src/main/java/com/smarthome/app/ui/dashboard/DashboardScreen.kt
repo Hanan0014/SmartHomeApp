@@ -154,6 +154,8 @@ private fun FloorCard(
 @Composable
 private fun AddFloorDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     var name by remember { mutableStateOf("") }
+    val nameError = name.isNotEmpty() && name.isBlank()
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add Floor Plan") },
@@ -162,11 +164,16 @@ private fun AddFloorDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
                 value = name,
                 onValueChange = { name = it },
                 label = { Text("Floor name, e.g. Ground Floor") },
-                singleLine = true
+                singleLine = true,
+                isError = nameError,
+                supportingText = { if (nameError) Text("Name can't be blank") }
             )
         },
         confirmButton = {
-            TextButton(onClick = { if (name.isNotBlank()) onConfirm(name) }) { Text("Add") }
+            TextButton(
+                onClick = { onConfirm(name) },
+                enabled = name.isNotBlank()
+            ) { Text("Add") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
