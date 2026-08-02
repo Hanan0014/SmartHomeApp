@@ -1,16 +1,19 @@
 package com.smarthome.app.ui.floorplan
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,390 +21,572 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
-import java.util.UUID
+import androidx.compose.ui.unit.sp
+import com.smarthome.app.R
+import com.smarthome.app.ui.components.SmartHomeBackground
+import com.smarthome.app.ui.components.ScrollableScreen
+s
 
+private const val GRID_ROWS = 6
+private const val GRID_COLS = 8
 
+data class DemoDevice(
+    val id: String,
+    val name: String,
+    val room: String,
+    val type: String,
+    val status: String,
+    val icon: String,
+    val gridX: Int,
+    val gridY: Int,
+    val power: Int? = null
+)
 
-import com.smarthome.app.ui.theme.PrimaryBlue
-import com.smarthome.app.ui.theme.BackgroundLight
-import com.smarthome.app.data.model.Device
-import com.smarthome.app.data.model.DeviceStatus
-import com.smarthome.app.data.model.DeviceType
-import com.smarthome.app.data.model.Floor
-import com.smarthome.app.data.model.SubSwitch
-import com.smarthome.app.ui.theme.StatusDisconnected
-import com.smarthome.app.ui.theme.StatusError
-import com.smarthome.app.ui.theme.StatusOff
-import com.smarthome.app.ui.theme.StatusOn
+data class DemoFloor(
+    val id: String,
+    val name: String,
+    val level: Int,
+    val image: Int,
+    val devices: List<DemoDevice>
+)
+
+private val groundFloor = DemoFloor(
+    id = "1",
+    name = "Ground Floor",
+    level = 1,
+    image = R.drawable.iron,
+    devices = listOf(
+        DemoDevice(
+            "1",
+            "Living Outlet",
+            "Living Room",
+            "OUTLET",
+            "ON",
+            "🔌",
+            1,
+            1,
+            120
+        ),
+        DemoDevice(
+            "2",
+            "Iron",
+            "Laundry",
+            "SCHEDULED",
+            "OFF",
+            "🔥",
+            3,
+            4
+        ),
+        DemoDevice(
+            "3",
+            "Front Camera",
+            "Entrance",
+            "CAMERA",
+            "ON",
+            "📷",
+            6,
+            2
+        ),
+        DemoDevice(
+            "4",
+            "Kitchen Light",
+            "Kitchen",
+            "LIGHT",
+            "ERROR",
+            "💡",
+            5,
+            5
+        ),
+        DemoDevice(
+            "5",
+            "Bedroom Switch",
+            "Bedroom",
+            "MULTI",
+            "DISCONNECTED",
+            "🎛️",
+            7,
+            1
+        )
+    )
+)
+
+private val firstFloor = DemoFloor(
+    id = "2",
+    name = "First Floor",
+    level = 2,
+    image = R.drawable.iron,
+    devices = listOf(
+        DemoDevice(
+            "6",
+            "Balcony Light",
+            "Balcony",
+            "LIGHT",
+            "ON",
+            "💡",
+            2,
+            2
+        ),
+        DemoDevice(
+            "7",
+            "Bedroom Camera",
+            "Bedroom",
+            "CAMERA",
+            "OFF",
+            "📷",
+            5,
+            4
+        )
+    )
+)
+
+private val floors = listOf(
+    groundFloor,
+    firstFloor
+)
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FloorPlanScreen(
-    floor: Floor,
-    onBack: () -> Unit,
-    onDeviceSelected: (Device) -> Unit
-) {
-    val viewModel: FloorPlanViewModel = viewModel(
-        factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
-                FloorPlanViewModel(floor.id) as T
-        }
-    )
-    val devices by viewModel.devices.collectAsState()
-    var showAddDeviceDialog by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+fun FloorPlanScreen(onBack: () -> Unit = {}, onDeviceClick: (String) -> Unit = {}){
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
+    var activeFloor by remember {
+        mutableStateOf(floors.first())
+    }
 
-                title = {
+    var selectedDevice by remember {
+        mutableStateOf<DemoDevice?>(null)
+    }
 
-                    Text(
-                        text = floor.name,
-                        color = Color.White
-                    )
+    SmartHomeBackground {
 
-                },
+        Scaffold(
 
-                navigationIcon = {
+            containerColor = Color.Transparent,
 
-                    IconButton(
-                        onClick = onBack
-                    ) {
+            topBar = {
 
-                        Icon(
-                            Icons.Default.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
+                TopAppBar(
+
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        titleContentColor = Color.White,
+                        navigationIconContentColor = Color.White,
+                        actionIconContentColor = Color.White
+                    ),
+
+                    title = {
+
+                        Column {
+
+                            Text(
+                                "Floor Plan",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+
+                        }
+
+                    },
+
+                    navigationIcon = {
+
+                        IconButton(onClick = onBack) {
+
+                            Icon(
+                                Icons.Default.ArrowBack,
+                                null
+                            )
+
+                        }
+
+                    },
+
+                    actions = {
+
+                        Button(
+
+                            onClick = {
+                                // open add floor dialog here
+                            },
+
+                            shape = RoundedCornerShape(12.dp),
+
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0x1422D3EE),
+                                contentColor = Color(0xFF22D3EE)
+                            ),
+
+                            border = BorderStroke(
+                                1.dp,
+                                Color(0x3322D3EE)
+                            ),
+
+                            contentPadding = PaddingValues(
+                                horizontal = 12.dp,
+                                vertical = 8.dp
+                            )
+
+                        ) {
+
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = null,
+                                modifier = Modifier.size(12.dp)
+                            )
+
+                            Spacer(
+                                modifier = Modifier.width(6.dp)
+                            )
+
+                            Text(
+                                text = "Add Floor",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+
+                        }
 
                     }
 
-                },
-
-
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = PrimaryBlue
                 )
 
-            )
-        }
-    ) { padding ->
-
-
-        Column(
-
-            modifier = Modifier
-                .fillMaxSize()
-                .background(BackgroundLight)
-                .padding(padding)
-
-        ) {
-
-
-            // Abstract grid overlay representing the floor plan
-            val context = LocalContext.current
-            val imageRes = remember(floor.planImageName) {
-                context.resources.getIdentifier(floor.planImageName, "drawable", context.packageName)
             }
 
+        ) { padding ->
 
-
-            ElevatedCard(
+            LazyColumn(
 
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 16.dp),
 
-                shape = MaterialTheme.shapes.large,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
 
-                elevation = CardDefaults.elevatedCardElevation(
-                    defaultElevation = 6.dp
-                )
+            ) {
 
-            ){
+                item {
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(floor.gridCols.toFloat() / floor.gridRows.toFloat())
-                        .padding(12.dp)
-                        .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
-                        .clip(RoundedCornerShape(8.dp))
-                ) {
-                    if (imageRes != 0) {
-                        Image(
-                            painter = painterResource(id = imageRes),
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.FillBounds,
-                            alpha = 0.5f
-                        )
-                    }
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
 
-                    Column(Modifier.fillMaxSize()) {
-                        for (row in 0 until floor.gridRows) {
-                            Row(Modifier.weight(1f).fillMaxWidth()) {
-                                for (col in 0 until floor.gridCols) {
-                                    val device = devices.firstOrNull { it.gridX == col && it.gridY == row }
-                                    Box(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .fillMaxHeight()
-                                            .border(0.5.dp, Color.LightGray.copy(alpha = 0.3f))
-                                            .clickable {
-                                                if (device == null) {
-                                                    showAddDeviceDialog = col to row
-                                                } else {
-                                                    onDeviceSelected(device)
-                                                }
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        device?.let {
-                                            DeviceGridTile(it)
-                                        }
-                                    }
-                                }
+                        items(floors) { floor ->
+
+                            val selected = floor.id == activeFloor.id
+
+                            Button(
+
+                                onClick = {
+
+                                    activeFloor = floor
+                                    selectedDevice = null
+
+                                },
+
+                                shape = RoundedCornerShape(8.dp),
+
+                                colors = ButtonDefaults.buttonColors(
+
+                                    containerColor = if (selected)
+                                                        Color(0x2622D3EE)
+                                                     else
+                                                        Color(0xFF0F172A),
+
+                                    contentColor = if (selected)
+                                                      Color(0xFF22D3EE)
+                                                   else
+                                                      Color(0xFF94A3B8)
+
+                                ),
+
+                                border = BorderStroke(
+
+                                    1.dp,
+
+                                    if (selected)
+                                        Color(0x4D22D3EE)
+                                    else
+                                        Color(0xFF1E293B)
+
+                                ),
+
+                                contentPadding = PaddingValues(
+                                    horizontal = 12.dp,
+                                    vertical = 6.dp
+                                )
+
+                            ) {
+
+                                Text(
+
+                                    text = "L${floor.level} · ${floor.name.split(" ")[0]}",
+
+                                    fontSize = 16.sp
+
+                                )
+
                             }
+
                         }
+
                     }
+
                 }
 
-            }
+                item {
 
-            HorizontalDivider()
-
-            // Device list (easier interaction than tapping tiny grid cells)
-            LazyColumnDeviceList(devices, onToggle = { viewModel.toggleDevice(it) }, onSelect = onDeviceSelected)
-        }
-    }
-
-    showAddDeviceDialog?.let { (x, y) ->
-        AddDeviceDialog(
-            onDismiss = { showAddDeviceDialog = null },
-            onConfirm = { name, type ->
-                viewModel.addDevice(
-                    Device(
-                        id = UUID.randomUUID().toString(),
-                        name = name,
-                        type = type,
-                        gridX = x,
-                        gridY = y,
-                        subSwitches = if (type == DeviceType.MULTI_SWITCH) listOf(
-                            SubSwitch("1", "Switch 1", DeviceStatus.OFF),
-                            SubSwitch("2", "Switch 2", DeviceStatus.OFF)
-                        ) else emptyList(),
-                        maxOnDurationSeconds = if (type == DeviceType.SCHEDULED_APPLIANCE) 600 else null
-                    )
-                )
-                showAddDeviceDialog = null
-            }
-        )
-    }
-}
-
-@Composable
-private fun DeviceGridTile(device: Device) {
-    val color = device.statusColor()
-    Box(
-        modifier = Modifier
-            .size(24.dp) // Tuned tap target/visual size
-            .clip(CircleShape)
-            .background(color)
-            .border(2.dp, Color.White, CircleShape)
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AddDeviceDialog(onDismiss: () -> Unit, onConfirm: (String, DeviceType) -> Unit) {
-    var name by remember { mutableStateOf("") }
-    var selectedType by remember { mutableStateOf(DeviceType.OUTLET) }
-    var expanded by remember { mutableStateOf(false) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add Device") },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Device Name") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(16.dp))
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded }
-                ) {
-                    OutlinedTextField(
-                        value = selectedType.name.replace('_', ' '),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Device Type") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(300.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .border(1.dp, Color.LightGray, RoundedCornerShape(20.dp))
                     ) {
-                        DeviceType.entries.forEach { type ->
-                            DropdownMenuItem(
-                                text = { Text(type.name.replace('_', ' ')) },
-                                onClick = {
-                                    selectedType = type
-                                    expanded = false
+
+                        Image(
+                            painter = painterResource(activeFloor.image),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                            alpha = 0.25f
+                        )
+
+                        Column(
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+
+                            repeat(GRID_ROWS) { row ->
+
+                                Row(
+                                    modifier = Modifier.weight(1f)
+                                ) {
+
+                                    repeat(GRID_COLS) { col ->
+
+                                        val device = activeFloor.devices.find {
+                                            it.gridX == col && it.gridY == row
+                                        }
+
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .fillMaxHeight()
+                                                .border(0.5.dp, Color(0x3322D3EE))
+                                                .clickable {
+                                                    selectedDevice = device
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+
+                                            if (device != null) {
+
+                                                val color =
+                                                    when (device.status) {
+
+                                                        "ON" -> Color(0xFF22C55E)
+
+                                                        "OFF" -> Color.Gray
+
+                                                        "ERROR" -> Color.Red
+
+                                                        else -> Color.Yellow
+
+                                                    }
+
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(34.dp)
+                                                        .background(
+                                                            color.copy(alpha = 0.15f),
+                                                            CircleShape
+                                                        )
+                                                        .border(
+                                                            2.dp,
+                                                            color,
+                                                            CircleShape
+                                                        ),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+
+                                                    Text(
+                                                        device.icon,
+                                                        fontSize = 16.sp
+                                                    )
+
+                                                }
+
+                                            }
+
+                                        }
+
+                                    }
+
                                 }
+
+                            }
+
+                        }
+
+                        Card(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(10.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(0xD9090D18)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+
+                                LegendItem("ON", Color(0xFF22C55E))
+                                LegendItem("OFF", Color.Gray)
+                                LegendItem("ERROR", Color.Red)
+                                LegendItem("N/C", Color(0xFFEAB308))
+
+                            }
+                        }
+
+                    }
+
+                }
+
+                item {
+
+                    Text(
+                        text = "Devices on ${activeFloor.name}",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFFFFFFFF),
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+
+                }
+
+                items(activeFloor.devices) { device ->
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onDeviceClick(device.id)
+                            },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFF111827)
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            Color(0xFF334155)
+                        )
+                    ) {
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFF1E293B)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = device.icon,
+                                    fontSize = 18.sp
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column(
+                                modifier = Modifier.weight(1f)
+                            ) {
+
+                                Text(
+                                    text = device.name,
+                                    color = Color.White,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+
+                                Text(
+                                    text = "${device.room} · ${device.type}",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+
+                            }
+
+                            if (device.power != null && device.status == "ON") {
+                                Text(
+                                    text = "${device.power}W",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 10.sp
+                                )
+
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+
+                            val statusColor = when (device.status) {
+                                "ON" -> Color(0xFF22C55E)
+                                "OFF" -> Color.Gray
+                                "ERROR" -> Color(0xFFEF4444)
+                                else -> Color(0xFFEAB308)
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .background(statusColor, CircleShape)
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { if (name.isNotBlank()) onConfirm(name, selectedType) }) {
-                Text("Add")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        }
-    )
-}
 
-@Composable
-private fun LazyColumnDeviceList(
-    devices: List<Device>,
-    onToggle: (Device) -> Unit,
-    onSelect: (Device) -> Unit
-) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(devices, key = { it.id }) { device ->
-            DeviceRow(device, onToggle = { onToggle(device) }, onClick = { onSelect(device) })
+            }
+
+
         }
+
     }
+
+
 }
 
 @Composable
-private fun DeviceRow(
-    device: Device,
-    onToggle: () -> Unit,
-    onClick: () -> Unit
-){
-
-    ElevatedCard(
-
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                onClick()
-            },
-
-        shape = MaterialTheme.shapes.large,
-
-        elevation = CardDefaults.elevatedCardElevation(
-            defaultElevation = 4.dp
+fun LegendItem(
+    text: String,
+    color: Color
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(7.dp)
+                .background(color, CircleShape)
         )
 
-    ){
-
-        Row(
-
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-
-            verticalAlignment = Alignment.CenterVertically
-
-        ){
-
-
-            Box(
-
-                modifier = Modifier
-                    .size(16.dp)
-                    .clip(CircleShape)
-                    .background(
-                        device.statusColor()
-                    )
-
-            )
-
-
-            Spacer(
-                modifier = Modifier.width(16.dp)
-            )
-
-
-            Column(
-
-                modifier = Modifier.weight(1f)
-
-            ){
-
-                Text(
-
-                    text = device.name,
-
-                    style = MaterialTheme.typography.titleMedium
-
-                )
-
-
-                Text(
-
-                    text =
-                        "${device.type.name.replace("_"," ")} • ${device.status.name}",
-
-                    style = MaterialTheme.typography.bodyMedium
-
-                )
-
-            }
-
-
-
-            if(device.type != DeviceType.CAMERA){
-
-                Switch(
-
-                    checked = device.status == DeviceStatus.ON,
-
-                    onCheckedChange = {
-
-                        onToggle()
-
-                    }
-
-                )
-
-            }
-
-
-        }
-
-
+        Text(
+            text = text,
+            color = color,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium
+        )
     }
-
-}
-
-private fun Device.statusColor(): Color = when (status) {
-    DeviceStatus.ON -> StatusOn
-    DeviceStatus.OFF -> StatusOff
-    DeviceStatus.ERROR -> StatusError
-    DeviceStatus.DISCONNECTED -> StatusDisconnected
 }
