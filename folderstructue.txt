@@ -51,6 +51,7 @@ SMARTHOMEAPP
 |     |            |             |      |____floorplan/
 |     |            |             |      |        |____FloorPlanScreen.kt
 |     |            |             |      |        |____FloorPlanViewModel.kt
+|     |            |             |      |        |____AddDeviceDialog.kt
 |     |            |             |      |       
 |     |            |             |      |____navigation/
 |     |            |             |      |        |____BottomNavBar.kt
