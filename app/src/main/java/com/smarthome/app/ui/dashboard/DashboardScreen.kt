@@ -71,9 +71,15 @@ fun DashboardScreen(
     if (showAddDialog) {
         AddFloorDialog(
             onDismiss = { showAddDialog = false },
-            onConfirm = { name ->
+            onConfirm = { name, gridCols, gridRows ->
                 viewModel.addFloor(
-                    Floor(id = UUID.randomUUID().toString(), name = name, order = floors.size)
+                    Floor(
+                        id = UUID.randomUUID().toString(),
+                        name = name,
+                        order = floors.size,
+                        gridCols = gridCols,
+                        gridRows = gridRows
+                    )
                 )
                 showAddDialog = false
             }
@@ -151,28 +157,70 @@ private fun FloorCard(
     }
 }
 
+private const val MIN_GRID_SIZE = 3
+private const val MAX_GRID_SIZE = 15
+private const val DEFAULT_GRID_COLS = 8
+private const val DEFAULT_GRID_ROWS = 6
+
 @Composable
-private fun AddFloorDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+private fun AddFloorDialog(onDismiss: () -> Unit, onConfirm: (name: String, gridCols: Int, gridRows: Int) -> Unit) {
     var name by remember { mutableStateOf("") }
+    var colsText by remember { mutableStateOf(DEFAULT_GRID_COLS.toString()) }
+    var rowsText by remember { mutableStateOf(DEFAULT_GRID_ROWS.toString()) }
+
     val nameError = name.isNotEmpty() && name.isBlank()
+    val cols = colsText.toIntOrNull()
+    val rows = rowsText.toIntOrNull()
+    val colsError = cols == null || cols !in MIN_GRID_SIZE..MAX_GRID_SIZE
+    val rowsError = rows == null || rows !in MIN_GRID_SIZE..MAX_GRID_SIZE
+    val canSubmit = name.isNotBlank() && !colsError && !rowsError
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add Floor Plan") },
         text = {
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Floor name, e.g. Ground Floor") },
-                singleLine = true,
-                isError = nameError,
-                supportingText = { if (nameError) Text("Name can't be blank") }
-            )
+            Column {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Floor name, e.g. Ground Floor") },
+                    singleLine = true,
+                    isError = nameError,
+                    supportingText = { if (nameError) Text("Name can't be blank") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "Grid size (customize how many cells your floor plan has)",
+                    style = MaterialTheme.typography.labelMedium
+                )
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = colsText,
+                        onValueChange = { colsText = it },
+                        label = { Text("Columns") },
+                        singleLine = true,
+                        isError = colsError,
+                        supportingText = { if (colsError) Text("$MIN_GRID_SIZE-$MAX_GRID_SIZE") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = rowsText,
+                        onValueChange = { rowsText = it },
+                        label = { Text("Rows") },
+                        singleLine = true,
+                        isError = rowsError,
+                        supportingText = { if (rowsError) Text("$MIN_GRID_SIZE-$MAX_GRID_SIZE") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(name) },
-                enabled = name.isNotBlank()
+                onClick = { onConfirm(name, cols ?: DEFAULT_GRID_COLS, rows ?: DEFAULT_GRID_ROWS) },
+                enabled = canSubmit
             ) { Text("Add") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
