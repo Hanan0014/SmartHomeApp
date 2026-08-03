@@ -17,6 +17,7 @@ import com.smarthome.app.ui.components.SmartHomeBackground
 import com.smarthome.app.ui.theme.PrimaryCyan
 import com.smarthome.app.ui.theme.TextPrimary
 import com.smarthome.app.ui.dashboard.components.FloorCard
+import com.smarthome.app.data.model.DeviceStatus
 import java.util.UUID
 
 
@@ -40,7 +41,7 @@ fun DashboardScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var floorPendingRename by remember { mutableStateOf<Floor?>(null) }
     var floorPendingDelete by remember { mutableStateOf<Floor?>(null) }
-    0
+
     SmartHomeBackground {
 
         Scaffold(
@@ -69,13 +70,12 @@ fun DashboardScreen(
 
         ) { padding ->
 
-            ScrollableScreen(
-
+            Column(
                 modifier = Modifier
                     .padding(padding)
                     .padding(horizontal = 20.dp)
+            ) {
 
-            ){
 
                 DashboardHeader(
 
@@ -106,13 +106,20 @@ fun DashboardScreen(
 
                 floors.forEach { floor ->
 
+                    val deviceCount = floor.devices.size
+
+                    val activeDevices = floor.devices.values.count { device ->
+                        device.status == DeviceStatus.ON
+                    }
+
+
                     FloorCard(
 
                         floor = floor,
 
-                        deviceCount = 0,
+                        deviceCount = deviceCount,
 
-                        activeDevices = 0,
+                        activeDevices = activeDevices,
 
                         onClick = {
                             onFloorSelected(floor)
@@ -122,9 +129,9 @@ fun DashboardScreen(
 
                 }
 
-
-
             }
+
+
 
         }
 
@@ -173,49 +180,6 @@ fun DashboardScreen(
     }
 }
 
-
-/*
-@Composable
-private fun FloorCard(
-    floor: Floor,
-    onClick: () -> Unit,
-    onRenameClick: () -> Unit,
-    onDeleteClick: () -> Unit
-) {
-    var showMenu by remember { mutableStateOf(false) }
-
-    ElevatedCard(modifier = Modifier.fillMaxWidth().clickable { onClick() }) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(floor.name, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "${floor.gridCols} x ${floor.gridRows} grid",
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
-            // Always-visible icon button -- no long-press or hidden gesture required.
-            Box {
-                IconButton(onClick = { showMenu = true }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "Floor options")
-                }
-                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    DropdownMenuItem(
-                        text = { Text("Rename") },
-                        onClick = { showMenu = false; onRenameClick() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Delete") },
-                        onClick = { showMenu = false; onDeleteClick() }
-                    )
-                }
-            }
-        }
-    }
-}*/
 
 @Composable
 private fun AddFloorDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {

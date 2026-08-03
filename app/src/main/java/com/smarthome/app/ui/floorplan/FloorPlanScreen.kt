@@ -251,7 +251,7 @@ fun FloorPlanScreen(floors: List<Floor>, selectedFloor: Floor, onBack: () -> Uni
 
                                     repeat(GRID_COLS) { col ->
 
-                                        val device = activeFloor.devices.find {
+                                        val device = activeFloor.devices.values.find {
                                             it.gridX == col && it.gridY == row
                                         }
 
@@ -280,6 +280,7 @@ fun FloorPlanScreen(floors: List<Floor>, selectedFloor: Floor, onBack: () -> Uni
 
                                                         DeviceStatus.DISCONNECTED -> Color.Yellow
 
+                                                        else -> Color.Gray
                                                     }
 
 
@@ -334,15 +335,13 @@ fun FloorPlanScreen(floors: List<Floor>, selectedFloor: Floor, onBack: () -> Uni
 
                 }
 
-                items(activeFloor.devices) { device ->
+                items(activeFloor.devices.values.toList()) { device ->
 
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                if (device != null) {
-                                    onDeviceSelected(device)
-                                }
+                                onDeviceSelected(device)
                             },
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(

@@ -14,7 +14,7 @@ package com.smarthome.app.data.model
  * Firebase RTDB path: /floors/{floorId}
  */
 data class Floor(
-    val id: String = "",
+    var id: String = "",
     val name: String = "",
     val planImageName: String = "",   // drawable resource name, e.g. "floor_plan_1"
     val room: String = "",
@@ -22,5 +22,5 @@ data class Floor(
     val gridRows: Int = 6,
     val order: Int = 0,
     val iconEmoji: String = "🏠",      // Dashboard thumbnail; user picks at creation
-    val devices: List<Device> = emptyList()
+    var devices: Map<String, Device> = emptyMap()
 )
