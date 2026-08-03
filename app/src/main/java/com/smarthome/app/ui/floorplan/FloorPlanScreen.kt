@@ -41,14 +41,14 @@ private const val GRID_COLS = 8
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FloorPlanScreen(floors: List<Floor>, selectedFloor: Floor, onBack: () -> Unit = {}, onDeviceSelected: (Device) -> Unit = {}){
+fun FloorPlanScreen(floors: List<Floor>, selectedFloor: Floor, floorPlanViewModel: FloorPlanViewModel, onBack: () -> Unit = {}, onDeviceSelected: (Device) -> Unit = {}){
 
     var activeFloor by remember {
         mutableStateOf(selectedFloor)
     }
 
 
-    //val devices by floorPlanViewModel.devices.collectAsState()
+    val devices by floorPlanViewModel.devices.collectAsState()
 
     var selectedDeviceOnFloor by remember {
         mutableStateOf<Device?>(null)
@@ -455,9 +455,7 @@ fun FloorPlanScreen(floors: List<Floor>, selectedFloor: Floor, onBack: () -> Uni
                         gridY = y
                     )
 
-                    activeFloor = activeFloor.copy(
-                        devices = activeFloor.devices + (newDevice.id to newDevice)
-                    )
+                    floorPlanViewModel.addDevice(newDevice)
 
                     showAddDeviceDialog = false
                 }
