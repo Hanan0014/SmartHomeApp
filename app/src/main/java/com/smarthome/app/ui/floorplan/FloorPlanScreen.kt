@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,8 +47,23 @@ fun FloorPlanScreen(floors: List<Floor>, selectedFloor: Floor, onBack: () -> Uni
         mutableStateOf(selectedFloor)
     }
 
+
+    //val devices by floorPlanViewModel.devices.collectAsState()
+
     var selectedDeviceOnFloor by remember {
         mutableStateOf<Device?>(null)
+    }
+
+    var showAddDeviceDialog by remember {
+        mutableStateOf(false)
+    }
+
+    var selectedGridX by remember {
+        mutableStateOf(0)
+    }
+
+    var selectedGridY by remember {
+        mutableStateOf(0)
     }
 
     SmartHomeBackground {
@@ -261,7 +277,20 @@ fun FloorPlanScreen(floors: List<Floor>, selectedFloor: Floor, onBack: () -> Uni
                                                 .fillMaxHeight()
                                                 .border(0.5.dp, Color(0x3322D3EE))
                                                 .clickable {
-                                                    selectedDeviceOnFloor = device
+
+                                                    if (device == null) {
+
+                                                        selectedGridX = col
+                                                        selectedGridY = row
+
+                                                        showAddDeviceDialog = true
+
+                                                    } else {
+
+                                                        selectedDeviceOnFloor = device
+
+                                                    }
+
                                                 },
                                             contentAlignment = Alignment.Center
                                         ) {
@@ -402,6 +431,37 @@ fun FloorPlanScreen(floors: List<Floor>, selectedFloor: Floor, onBack: () -> Uni
 
             }
 
+
+        }
+
+        if (showAddDeviceDialog) {
+
+            AddDeviceDialog(
+                gridX = selectedGridX,
+                gridY = selectedGridY,
+
+                onDismiss = {
+                    showAddDeviceDialog = false
+                },
+
+                onAddDevice = { name, type, x, y ->
+
+                    val newDevice = Device(
+                        id = System.currentTimeMillis().toString(),
+                        name = name,
+                        type = type,
+                        status = DeviceStatus.OFF,
+                        gridX = x,
+                        gridY = y
+                    )
+
+                    activeFloor = activeFloor.copy(
+                        devices = activeFloor.devices + (newDevice.id to newDevice)
+                    )
+
+                    showAddDeviceDialog = false
+                }
+            )
 
         }
 

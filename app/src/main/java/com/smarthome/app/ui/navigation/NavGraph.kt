@@ -13,6 +13,7 @@ import com.smarthome.app.ui.dashboard.DashboardViewModel
 import com.smarthome.app.ui.dashboard.DashboardScreen
 import com.smarthome.app.ui.device.DeviceDetailScreen
 import com.smarthome.app.ui.floorplan.FloorPlanScreen
+import com.smarthome.app.ui.floorplan.FloorPlanViewModel
 import com.smarthome.app.ui.reports.ReportsScreen
 import com.smarthome.app.ui.auth.LoginScreen
 import com.smarthome.app.data.model.Device
@@ -58,16 +59,19 @@ fun SmartHomeNavGraph(navController: NavHostController, modifier: Modifier = Mod
         }
         composable(Routes.FLOOR_PLAN) {
 
+            val floor = selectedFloor ?: return@composable
+
             val dashboardViewModel: DashboardViewModel = viewModel()
 
             val floors = dashboardViewModel.floors.collectAsState().value
 
-            val floor = selectedFloor ?: return@composable
 
             FloorPlanScreen(
                 floors = floors,
                 selectedFloor = floor,
-                onBack = { navController.popBackStack() },
+                onBack = {
+                    navController.popBackStack()
+                },
                 onDeviceSelected = { device ->
                     selectedDevice = device
                     navController.navigate(Routes.DEVICE_DETAIL)
