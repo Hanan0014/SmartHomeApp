@@ -6,6 +6,7 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import com.smarthome.app.data.model.Device
 import com.smarthome.app.data.model.Floor
+import com.smarthome.app.data.model.Room
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -92,6 +93,28 @@ class SmartHomeRepository(
 
     suspend fun addDevice(floorId: String, device: Device) {
         floorsRef.child(floorId).child("devices").child(device.id).setValue(device).await()
+    }
+
+    /** Live stream of every room defined on a floor. */
+    fun observeRooms(floorId: String): Flow<List<Room>> = callbackFlow {
+        val ref = floorsRef.child(floorId).child("rooms")
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val rooms = snapshot.children.mapNotNull { it.getValue(Room::class.java) }
+                trySend(rooms)
+            }
+            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+        }
+        ref.addValueEventListener(listener)
+        awaitClose { ref.removeEventListener(listener) }
+    }
+
+    suspend fun addRoom(floorId: String, room: Room) {
+        floorsRef.child(floorId).child("rooms").child(room.id).setValue(room).await()
+    }
+
+    suspend fun deleteRoom(floorId: String, roomId: String) {
+        floorsRef.child(floorId).child("rooms").child(roomId).removeValue().await()
     }
 
     /** Simple ON/OFF toggle for outlets and lights. Stamps turnedOnAtEpochMs
