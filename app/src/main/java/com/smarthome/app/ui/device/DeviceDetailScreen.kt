@@ -3,9 +3,11 @@ package com.smarthome.app.ui.device
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
@@ -53,48 +55,20 @@ fun DeviceDetailScreen(floorId: String, device: Device, onBack: () -> Unit) {
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = currentDevice.name,
-                            color = Color.White
-                        )
-                    },
-                    navigationIcon = {
-                        Box(
-                            modifier = Modifier
-                                .padding(start = 8.dp)
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color.White)
-                                .border(
-                                    width = 1.dp,
-                                    color = Color(0xFFE2E8F0),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                                .clickable { onBack() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = "Back",
-                                tint = Color(0xFF94A3B8),
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                        titleContentColor = Color.White,
-                        navigationIconContentColor = Color.White
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 17.dp)
+                ) {
+                    DeviceHeader(
+                        device = currentDevice,
+                        onBack = onBack
                     )
-                )
+                }
             }
         ) { paddingValues ->
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    //.background(BackgroundLight)
                     .padding(paddingValues)
                     .padding(16.dp)
             ) {
@@ -108,11 +82,16 @@ fun DeviceDetailScreen(floorId: String, device: Device, onBack: () -> Unit) {
                     return@Column
                 }
 
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    shape = MaterialTheme.shapes.large,
-                    tonalElevation = 3.dp
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 8.dp)
                 ) {
+
+                    DeviceMetaChips(
+                        device = currentDevice
+                    )
+
                     when (currentDevice.type) {
                         DeviceType.OUTLET -> OutletControl(
                             device = currentDevice,
@@ -132,9 +111,118 @@ fun DeviceDetailScreen(floorId: String, device: Device, onBack: () -> Unit) {
                         )
                         DeviceType.CAMERA -> CameraControl(device = currentDevice)
                     }
+
                 }
             }
         }
+
+    }
+
+}
+
+
+
+
+
+@Composable 
+fun DeviceHeader(device: Device, onBack: () -> Unit){
+
+    Column{
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.White)
+                    .clickable {
+                        onBack()
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color(0xFF94A3B8),
+                    modifier = Modifier.size(16.dp)
+                )
+
+            }
+
+            Spacer(modifier = Modifier.size(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+
+                Text(
+                    text = device.type.name,
+                    color = Color(0xFF94A3B8),
+                    style = MaterialTheme.typography.labelMedium
+                )
+
+                Text(
+                    text = device.name,
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleLarge
+                )
+
+            }
+
+            DeviceStatusBadge(status = device.status.name)
+
+        }
+
+    }
+
+}
+
+@Composable
+fun DeviceStatusBadge(status: String) {
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(statusColor(status).copy(alpha = 0.15f))
+            .padding(
+                horizontal = 10.dp,
+                vertical = 6.dp
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(statusColor(status))
+            )
+
+            Spacer(modifier = Modifier.size(6.dp))
+
+            Text(
+                text = status,
+                color = statusColor(status),
+                style = MaterialTheme.typography.labelMedium
+            )
+
+        }
+
+    }
+
+}
+
+fun statusColor(status: String): Color {
+
+    return when (status.uppercase()) {
+
+        "ON" -> Color(0xFF22C55E)       // Green
+        "OFF" -> Color(0xFF94A3B8)      // Grey
+        "ACTIVE" -> Color(0xFF3B82F6)  // Blue
+
+        else -> Color(0xFFCBD5E1)
 
     }
 
