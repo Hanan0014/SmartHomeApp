@@ -1,9 +1,9 @@
 package com.smarthome.app.data.model
 
 /**
- * A named zone within a floor (Hall, Kitchen, Bathroom, Bedroom, ...),
- * defined by the set of grid cells it occupies. Devices placed inside those
- * cells belong to this room (see Device.roomId).
+ * A named zone within a floor (Hall, Kitchen, Bathroom, Bedroom, ...).
+ * Each room has its own independent abstract grid — devices are placed at
+ * (gridX, gridY) within THIS room's grid, not the floor's.
  *
  * Firebase RTDB path: /floors/{floorId}/rooms/{roomId}
  */
@@ -11,9 +11,8 @@ data class Room(
     val id: String = "",
     val name: String = "",
     val icon: String = "🏠",
-    // Stored as "x,y" strings since RTDB doesn't support nested arrays of
-    // pairs cleanly via the default POJO mapper — parsed back into
-    // Pair<Int, Int> by RoomCell helpers below.
+    val gridCols: Int = 6,
+    val gridRows: Int = 4,
     val cells: List<String> = emptyList()
 ) {
     fun containsCell(x: Int, y: Int): Boolean = cells.contains(cellKey(x, y))

@@ -121,4 +121,23 @@ class FloorPlanViewModel(
 
     /** Which room (if any) a given grid cell currently belongs to. */
     fun roomForCell(x: Int, y: Int): Room? = _rooms.value.firstOrNull { it.containsCell(x, y) }
+
+    /**
+     * First cell inside `room` not already occupied by a device — used to
+     * auto-place a new device when it's added from inside a Room screen
+     * (no manual grid-cell tap needed there, since the user already picked
+     * the room). Falls back to null if every cell in the room is occupied,
+     * in which case the caller should still place at the room's first cell
+     * (devices can share a visual grid position; only Firebase IDs need to
+     * be unique).
+     */
+    fun firstFreeCellInRoom(room: Room): Pair<Int, Int>? {
+        val occupied = _devices.value.map { it.gridX to it.gridY }.toSet()
+        return room.cells
+            .mapNotNull { key ->
+                val parts = key.split(",")
+                if (parts.size == 2) parts[0].toIntOrNull()?.let { x -> parts[1].toIntOrNull()?.let { y -> x to y } } else null
+            }
+            .firstOrNull { it !in occupied }
+    }
 }

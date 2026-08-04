@@ -1,5 +1,6 @@
 package com.smarthome.app.ui.floorplan
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import java.util.UUID
@@ -31,15 +33,9 @@ import com.smarthome.app.ui.theme.PrimaryBlue
 import com.smarthome.app.ui.theme.BackgroundLight
 import com.smarthome.app.data.model.Device
 import com.smarthome.app.data.model.DeviceStatus
-import com.smarthome.app.data.model.DeviceType
 import com.smarthome.app.data.model.Floor
 import com.smarthome.app.data.model.Room
 import com.smarthome.app.data.model.ROOM_TYPE_PRESETS
-import com.smarthome.app.data.model.SubSwitch
-import com.smarthome.app.ui.theme.StatusDisconnected
-import com.smarthome.app.ui.theme.StatusError
-import com.smarthome.app.ui.theme.StatusOff
-import com.smarthome.app.ui.theme.StatusOn
 
 // A small fixed palette so each room gets a distinct, consistent tint —
 // cycles if there are more rooms than colors.
@@ -58,7 +54,8 @@ private fun roomColor(room: Room, allRooms: List<Room>): Color {
 fun FloorPlanScreen(
     floor: Floor,
     onBack: () -> Unit,
-    onDeviceSelected: (Device) -> Unit
+    onDeviceSelected: (Device) -> Unit,
+    onRoomSelected: (Room) -> Unit
 ) {
     val viewModel: FloorPlanViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
@@ -70,14 +67,11 @@ fun FloorPlanScreen(
     val devices by viewModel.devices.collectAsState()
     val rooms by viewModel.rooms.collectAsState()
 
-    var showAddDeviceDialog by remember { mutableStateOf<Pair<Int, Int>?>(null) }
-
     // Room-definition mode: while active, tapping grid cells selects them
-    // instead of opening a device/Add Device dialog.
+    // instead of navigating into a room.
     var isDefiningRoom by remember { mutableStateOf(false) }
     var selectedCells by remember { mutableStateOf(setOf<Pair<Int, Int>>()) }
     var showSaveRoomDialog by remember { mutableStateOf(false) }
-    var roomFilter by remember { mutableStateOf<Room?>(null) } // room chip filter for device list
 
     Scaffold(
         topBar = {
@@ -133,6 +127,15 @@ fun FloorPlanScreen(
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
+            } else if (rooms.isEmpty()) {
+                Surface(color = MaterialTheme.colorScheme.secondaryContainer) {
+                    Text(
+                        text = "Tap \"Add Room\" above to mark out a Hall, Kitchen, or other space on the grid — devices live inside rooms.",
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
 
             val context = LocalContext.current
@@ -183,16 +186,19 @@ fun FloorPlanScreen(
                                                 }
                                             )
                                             .clickable {
-                                                if (isDefiningRoom) {
-                                                    selectedCells = if (isSelected) {
-                                                        selectedCells - (col to row)
-                                                    } else {
-                                                        selectedCells + (col to row)
+                                                when {
+                                                    isDefiningRoom -> {
+                                                        selectedCells = if (isSelected) {
+                                                            selectedCells - (col to row)
+                                                        } else {
+                                                            selectedCells + (col to row)
+                                                        }
                                                     }
-                                                } else if (device == null) {
-                                                    showAddDeviceDialog = col to row
-                                                } else {
-                                                    onDeviceSelected(device)
+                                                    device != null -> onDeviceSelected(device)
+                                                    cellRoom != null -> onRoomSelected(cellRoom)
+                                                    // Tapping an empty cell outside any room does
+                                                    // nothing — devices must belong to a room now,
+                                                    // so there's nothing meaningful to open here.
                                                 }
                                             },
                                         contentAlignment = Alignment.Center
@@ -206,43 +212,34 @@ fun FloorPlanScreen(
                 }
             }
 
-            // Room chips — tap to filter the device list below to just that
-            // room, tap again to clear the filter.
-            if (rooms.isNotEmpty() && !isDefiningRoom) {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(rooms, key = { it.id }) { room ->
-                        FilterChip(
-                            selected = roomFilter?.id == room.id,
-                            onClick = { roomFilter = if (roomFilter?.id == room.id) null else room },
-                            label = { Text("${room.icon} ${room.name}") }
-                        )
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-            }
-
             HorizontalDivider()
 
-            val visibleDevices = if (roomFilter != null) {
-                devices.filter { it.roomId == roomFilter!!.id }
-            } else devices
-
-            if (visibleDevices.isEmpty()) {
-                Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+            // Rooms list replaces the old flat device list — devices now
+            // live inside rooms, so browsing by room is the primary path.
+            if (rooms.isEmpty()) {
+                Box(Modifier.fillMaxWidth().weight(1f).padding(24.dp), contentAlignment = Alignment.Center) {
                     Text(
-                        text = if (roomFilter != null)
-                            "No devices in ${roomFilter!!.name} yet."
-                        else
-                            "No devices yet. Tap an empty cell on the grid above to add one.",
+                        text = "No rooms yet. Use \"Add Room\" above to get started.",
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center
                     )
                 }
             } else {
-                LazyColumnDeviceList(visibleDevices, onToggle = { viewModel.toggleDevice(it) }, onSelect = onDeviceSelected)
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(rooms, key = { it.id }) { room ->
+                        val deviceCount = devices.count { it.roomId == room.id }
+                        RoomListCard(
+                            room = room,
+                            deviceCount = deviceCount,
+                            color = roomColor(room, rooms),
+                            onClick = { onRoomSelected(room) }
+                        )
+                    }
+                }
             }
         }
     }
@@ -265,46 +262,48 @@ fun FloorPlanScreen(
             }
         )
     }
-
-    showAddDeviceDialog?.let { (x, y) ->
-        val autoRoom = viewModel.roomForCell(x, y)
-        AddDeviceDialog(
-            rooms = rooms,
-            preselectedRoom = autoRoom,
-            onDismiss = { showAddDeviceDialog = null },
-            onConfirm = { name, type, subSwitchCount, maxDurationSeconds, roomId ->
-                viewModel.addDevice(
-                    Device(
-                        id = UUID.randomUUID().toString(),
-                        name = name,
-                        type = type,
-                        gridX = x,
-                        gridY = y,
-                        roomId = roomId,
-                        subSwitches = if (type == DeviceType.MULTI_SWITCH) {
-                            (1..subSwitchCount).map { index ->
-                                SubSwitch(index.toString(), "Switch $index", DeviceStatus.OFF)
-                            }
-                        } else emptyList(),
-                        maxOnDurationSeconds = if (type == DeviceType.SCHEDULED_APPLIANCE) maxDurationSeconds else null
-                    )
-                )
-                showAddDeviceDialog = null
-            }
-        )
-    }
 }
 
 @Composable
 private fun DeviceGridTile(device: Device) {
-    val color = device.statusColor()
     Box(
         modifier = Modifier
             .size(24.dp)
             .clip(CircleShape)
-            .background(color)
+            .background(device.statusColor())
             .border(2.dp, Color.White, CircleShape)
     )
+}
+
+@Composable
+private fun RoomListCard(
+    room: Room,
+    deviceCount: Int,
+    color: Color,
+    onClick: () -> Unit
+) {
+    ElevatedCard(modifier = Modifier.fillMaxWidth().clickable { onClick() }) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier.size(44.dp).clip(CircleShape).background(color),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(room.icon, fontSize = 20.sp)
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(room.name, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    if (deviceCount == 0) "No devices yet" else "$deviceCount device${if (deviceCount == 1) "" else "s"}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            Icon(Icons.Default.ChevronRight, contentDescription = "Open ${room.name}")
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -328,23 +327,33 @@ private fun SaveRoomDialog(onDismiss: () -> Unit, onConfirm: (name: String, icon
                     supportingText = { if (nameError) Text("Name can't be blank") },
                     modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(Modifier.height(12.dp))
-                Text("Type", style = MaterialTheme.typography.labelMedium)
-                Spacer(Modifier.height(6.dp))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(ROOM_TYPE_PRESETS) { (presetName, presetIcon) ->
-                        val isSelected = selectedIcon == presetIcon
-                        AssistChip(
-                            onClick = {
-                                selectedIcon = presetIcon
-                                if (name.isBlank()) name = presetName
-                            },
-                            label = { Text("$presetIcon $presetName") },
-                            colors = if (isSelected) AssistChipDefaults.assistChipColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer
-                            ) else AssistChipDefaults.assistChipColors()
-                        )
+                Spacer(Modifier.height(16.dp))
+                Text("Room type", style = MaterialTheme.typography.labelMedium)
+                Spacer(Modifier.height(10.dp))
+
+                ROOM_TYPE_PRESETS.chunked(4).forEach { rowItems ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        rowItems.forEach { (presetName, presetIcon) ->
+                            val isSelected = selectedIcon == presetIcon
+                            RoomTypeCard(
+                                icon = presetIcon,
+                                label = presetName,
+                                isSelected = isSelected,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    selectedIcon = presetIcon
+                                    if (name.isBlank() || ROOM_TYPE_PRESETS.any { it.first == name }) {
+                                        name = presetName
+                                    }
+                                }
+                            )
+                        }
+                        repeat(4 - rowItems.size) { Spacer(Modifier.weight(1f)) }
                     }
+                    Spacer(Modifier.height(10.dp))
                 }
             }
         },
@@ -358,201 +367,36 @@ private fun SaveRoomDialog(onDismiss: () -> Unit, onConfirm: (name: String, icon
     )
 }
 
-private val SUB_SWITCH_COUNT_OPTIONS = listOf(2, 3, 5)
-private const val DEFAULT_MAX_DURATION_SECONDS = 600L
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddDeviceDialog(
-    rooms: List<Room>,
-    preselectedRoom: Room?,
-    onDismiss: () -> Unit,
-    onConfirm: (name: String, type: DeviceType, subSwitchCount: Int, maxDurationSeconds: Long, roomId: String?) -> Unit
+private fun RoomTypeCard(
+    icon: String,
+    label: String,
+    isSelected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
-    var selectedType by remember { mutableStateOf(DeviceType.OUTLET) }
-    var typeExpanded by remember { mutableStateOf(false) }
-    var subSwitchCount by remember { mutableStateOf(SUB_SWITCH_COUNT_OPTIONS.first()) }
-    var subSwitchExpanded by remember { mutableStateOf(false) }
-    var maxDurationText by remember { mutableStateOf(DEFAULT_MAX_DURATION_SECONDS.toString()) }
-    var selectedRoom by remember { mutableStateOf(preselectedRoom) }
-    var roomExpanded by remember { mutableStateOf(false) }
-
-    val nameError = name.isNotEmpty() && name.isBlank()
-    val maxDurationValue = maxDurationText.toLongOrNull()
-    val maxDurationError = selectedType == DeviceType.SCHEDULED_APPLIANCE &&
-            (maxDurationValue == null || maxDurationValue <= 0)
-    val canSubmit = name.isNotBlank() && !maxDurationError
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add Device") },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Device Name") },
-                    singleLine = true,
-                    isError = nameError,
-                    supportingText = { if (nameError) Text("Name can't be blank") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(16.dp))
-
-                if (rooms.isNotEmpty()) {
-                    ExposedDropdownMenuBox(
-                        expanded = roomExpanded,
-                        onExpandedChange = { roomExpanded = !roomExpanded }
-                    ) {
-                        OutlinedTextField(
-                            value = selectedRoom?.let { "${it.icon} ${it.name}" } ?: "No room (unassigned)",
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Room") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = roomExpanded) },
-                            modifier = Modifier.menuAnchor().fillMaxWidth()
-                        )
-                        ExposedDropdownMenu(expanded = roomExpanded, onDismissRequest = { roomExpanded = false }) {
-                            DropdownMenuItem(
-                                text = { Text("No room (unassigned)") },
-                                onClick = { selectedRoom = null; roomExpanded = false }
-                            )
-                            rooms.forEach { room ->
-                                DropdownMenuItem(
-                                    text = { Text("${room.icon} ${room.name}") },
-                                    onClick = { selectedRoom = room; roomExpanded = false }
-                                )
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(16.dp))
-                }
-
-                ExposedDropdownMenuBox(
-                    expanded = typeExpanded,
-                    onExpandedChange = { typeExpanded = !typeExpanded }
-                ) {
-                    OutlinedTextField(
-                        value = selectedType.name.replace('_', ' '),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Device Type") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeExpanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(expanded = typeExpanded, onDismissRequest = { typeExpanded = false }) {
-                        DeviceType.entries.forEach { type ->
-                            DropdownMenuItem(
-                                text = { Text(type.name.replace('_', ' ')) },
-                                onClick = { selectedType = type; typeExpanded = false }
-                            )
-                        }
-                    }
-                }
-
-                if (selectedType == DeviceType.MULTI_SWITCH) {
-                    Spacer(Modifier.height(16.dp))
-                    ExposedDropdownMenuBox(
-                        expanded = subSwitchExpanded,
-                        onExpandedChange = { subSwitchExpanded = !subSwitchExpanded }
-                    ) {
-                        OutlinedTextField(
-                            value = "$subSwitchCount switches",
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Sub-switch count") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subSwitchExpanded) },
-                            modifier = Modifier.menuAnchor().fillMaxWidth()
-                        )
-                        ExposedDropdownMenu(expanded = subSwitchExpanded, onDismissRequest = { subSwitchExpanded = false }) {
-                            SUB_SWITCH_COUNT_OPTIONS.forEach { count ->
-                                DropdownMenuItem(
-                                    text = { Text("$count switches") },
-                                    onClick = { subSwitchCount = count; subSwitchExpanded = false }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                if (selectedType == DeviceType.SCHEDULED_APPLIANCE) {
-                    Spacer(Modifier.height(16.dp))
-                    OutlinedTextField(
-                        value = maxDurationText,
-                        onValueChange = { maxDurationText = it },
-                        label = { Text("Max ON duration (seconds)") },
-                        singleLine = true,
-                        isError = maxDurationError,
-                        supportingText = { if (maxDurationError) Text("Enter a positive number of seconds") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    onConfirm(name, selectedType, subSwitchCount, maxDurationValue ?: DEFAULT_MAX_DURATION_SECONDS, selectedRoom?.id)
-                },
-                enabled = canSubmit
-            ) { Text("Add") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
-}
-
-@Composable
-private fun LazyColumnDeviceList(
-    devices: List<Device>,
-    onToggle: (Device) -> Unit,
-    onSelect: (Device) -> Unit
-) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(76.dp),
+        shape = MaterialTheme.shapes.medium,
+        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+        border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
     ) {
-        items(devices, key = { it.id }) { device ->
-            DeviceRow(device, onToggle = { onToggle(device) }, onClick = { onSelect(device) })
-        }
-    }
-}
-
-@Composable
-private fun DeviceRow(device: Device, onToggle: () -> Unit, onClick: () -> Unit) {
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth().clickable { onClick() },
-        shape = MaterialTheme.shapes.large,
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.fillMaxSize().padding(6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Box(modifier = Modifier.size(16.dp).clip(CircleShape).background(device.statusColor()))
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = device.name, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = "${device.type.name.replace("_", " ")} • ${device.status.name}",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-            if (device.type != DeviceType.CAMERA) {
-                Switch(
-                    checked = device.status == DeviceStatus.ON,
-                    enabled = device.status == DeviceStatus.ON || device.status == DeviceStatus.OFF,
-                    onCheckedChange = { onToggle() }
-                )
-            }
+            Text(text = icon, fontSize = 22.sp)
+            Spacer(Modifier.height(4.dp))
+            Text(text = label, style = MaterialTheme.typography.labelSmall, maxLines = 1, textAlign = TextAlign.Center)
         }
     }
 }
 
-private fun Device.statusColor(): Color = when (status) {
-    DeviceStatus.ON -> StatusOn
-    DeviceStatus.OFF -> StatusOff
-    DeviceStatus.ERROR -> StatusError
-    DeviceStatus.DISCONNECTED -> StatusDisconnected
+internal fun Device.statusColor(): Color = when (status) {
+    DeviceStatus.ON -> com.smarthome.app.ui.theme.StatusOn
+    DeviceStatus.OFF -> com.smarthome.app.ui.theme.StatusOff
+    DeviceStatus.ERROR -> com.smarthome.app.ui.theme.StatusError
+    DeviceStatus.DISCONNECTED -> com.smarthome.app.ui.theme.StatusDisconnected
 }
