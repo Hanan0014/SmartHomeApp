@@ -7,14 +7,17 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.smarthome.app.data.model.Device
 import com.smarthome.app.data.model.Floor
+import com.smarthome.app.data.model.Room
 import com.smarthome.app.ui.dashboard.DashboardScreen
 import com.smarthome.app.ui.device.DeviceDetailScreen
 import com.smarthome.app.ui.floorplan.FloorPlanScreen
+import com.smarthome.app.ui.floorplan.RoomScreen
 import com.smarthome.app.ui.reports.ReportsScreen
 
 private object Routes {
     const val DASHBOARD = "dashboard"
     const val FLOOR_PLAN = "floor_plan"
+    const val ROOM = "room"
     const val DEVICE_DETAIL = "device_detail"
     const val REPORTS = "reports"
 }
@@ -24,6 +27,7 @@ private object Routes {
  * of Gson-serializing complex objects into nav route arguments.
  */
 private var selectedFloor: Floor? = null
+private var selectedRoom: Room? = null
 private var selectedDevice: Device? = null
 
 @Composable
@@ -42,6 +46,23 @@ fun SmartHomeNavGraph(navController: NavHostController = rememberNavController()
             val floor = selectedFloor ?: return@composable
             FloorPlanScreen(
                 floor = floor,
+                onBack = { navController.popBackStack() },
+                onDeviceSelected = { device ->
+                    selectedDevice = device
+                    navController.navigate(Routes.DEVICE_DETAIL)
+                },
+                onRoomSelected = { room ->
+                    selectedRoom = room
+                    navController.navigate(Routes.ROOM)
+                }
+            )
+        }
+        composable(Routes.ROOM) {
+            val floor = selectedFloor ?: return@composable
+            val room = selectedRoom ?: return@composable
+            RoomScreen(
+                floorId = floor.id,
+                room = room,
                 onBack = { navController.popBackStack() },
                 onDeviceSelected = { device ->
                     selectedDevice = device
