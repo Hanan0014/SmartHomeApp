@@ -313,6 +313,32 @@ fun FloorPlanScreen(floors: List<Floor>, selectedFloor: Floor, floorPlanViewMode
                                                     }
 
 
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(32.dp)
+                                                        .clip(CircleShape)
+                                                        .background(Color(0xFF0F172A))
+                                                        .border(
+                                                            width = 2.dp,
+                                                            color = color,
+                                                            shape = CircleShape
+                                                        )
+                                                        .clickable {
+                                                            selectedDeviceOnFloor = device
+                                                        },
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+
+                                                    Text(
+                                                        text = when(device.type){
+                                                            else -> "●"
+                                                        },
+                                                        color = color,
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+
+                                                }    
 
                                             }
 
