@@ -26,13 +26,18 @@ data class Device(
     val gridX: Int = 0,
     val gridY: Int = 0,
 
+    // Phase 8: which Room (Hall, Kitchen, ...) this device belongs to,
+    // derived from which room's cells contain (gridX, gridY) at creation
+    // time. Null means "unassigned" — devices placed before rooms existed,
+    // or placed outside any defined room boundary.
+    val roomId: String? = null,
+
     // Multi-switch unit: list of individually addressable sub-switches
     val subSwitches: List<SubSwitch> = emptyList(),
 
     // Scheduled / fire-hazard appliances (irons, etc.)
     val maxOnDurationSeconds: Long? = null,
     val turnedOnAtEpochMs: Long? = null,
-    val power: Int? = 0,
 
     // Light schedule window (HH:mm 24h strings)
     val scheduleStart: String? = null,

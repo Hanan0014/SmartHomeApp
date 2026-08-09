@@ -1,7 +1,5 @@
 package com.smarthome.app.data.model
 
-
-
 /**
  * A house floor. `planImageRes` points to a bundled sample floor-plan drawable;
  * the abstract grid (gridCols x gridRows) is overlaid on top of it and devices
@@ -14,13 +12,11 @@ package com.smarthome.app.data.model
  * Firebase RTDB path: /floors/{floorId}
  */
 data class Floor(
-    var id: String = "",
+    val id: String = "",
     val name: String = "",
     val planImageName: String = "",   // drawable resource name, e.g. "floor_plan_1"
-    val room: String = "",
     val gridCols: Int = 8,
     val gridRows: Int = 6,
     val order: Int = 0,
-    val iconEmoji: String = "🏠",      // Dashboard thumbnail; user picks at creation
-    var devices: Map<String, Device> = emptyMap()
+    val iconEmoji: String = "🏠"      // Dashboard thumbnail; user picks at creation
 )

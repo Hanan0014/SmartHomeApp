@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.smarthome.app.data.model.Device
 import com.smarthome.app.data.model.DeviceStatus
 import com.smarthome.app.data.model.DeviceType
+import com.smarthome.app.data.model.Room
 import com.smarthome.app.data.repository.SmartHomeRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,10 +27,17 @@ class FloorPlanViewModel(
     private val _devices = MutableStateFlow<List<Device>>(emptyList())
     val devices: StateFlow<List<Device>> = _devices.asStateFlow()
 
+    private val _rooms = MutableStateFlow<List<Room>>(emptyList())
+    val rooms: StateFlow<List<Room>> = _rooms.asStateFlow()
+
     init {
         // Real-time: reflects toggles made from this app or another user's phone.
         viewModelScope.launch {
             repository.observeDevices(floorId).collect { _devices.value = it }
+        }
+
+        viewModelScope.launch {
+            repository.observeRooms(floorId).collect { _rooms.value = it }
         }
 
         // KNOWN LIMITATION: our Firebase project is on the Spark (free) tier,
@@ -101,5 +109,35 @@ class FloorPlanViewModel(
 
     fun addDevice(device: Device) {
         viewModelScope.launch { repository.addDevice(floorId, device) }
+    }
+
+    fun addRoom(room: Room) {
+        viewModelScope.launch { repository.addRoom(floorId, room) }
+    }
+
+    fun deleteRoom(roomId: String) {
+        viewModelScope.launch { repository.deleteRoom(floorId, roomId) }
+    }
+
+    /** Which room (if any) a given grid cell currently belongs to. */
+    fun roomForCell(x: Int, y: Int): Room? = _rooms.value.firstOrNull { it.containsCell(x, y) }
+
+    /**
+     * First cell inside `room` not already occupied by a device — used to
+     * auto-place a new device when it's added from inside a Room screen
+     * (no manual grid-cell tap needed there, since the user already picked
+     * the room). Falls back to null if every cell in the room is occupied,
+     * in which case the caller should still place at the room's first cell
+     * (devices can share a visual grid position; only Firebase IDs need to
+     * be unique).
+     */
+    fun firstFreeCellInRoom(room: Room): Pair<Int, Int>? {
+        val occupied = _devices.value.map { it.gridX to it.gridY }.toSet()
+        return room.cells
+            .mapNotNull { key ->
+                val parts = key.split(",")
+                if (parts.size == 2) parts[0].toIntOrNull()?.let { x -> parts[1].toIntOrNull()?.let { y -> x to y } } else null
+            }
+            .firstOrNull { it !in occupied }
     }
 }

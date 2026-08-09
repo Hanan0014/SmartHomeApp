@@ -1,4 +1,4 @@
-package com.smarthome.app.ui.navigation
+/*package com.smarthome.app.ui.navigation
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -48,4 +48,4 @@ fun SmartHomeApp(){
 
     }
 
-}
+}*/

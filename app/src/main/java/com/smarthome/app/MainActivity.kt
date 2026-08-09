@@ -6,7 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import com.smarthome.app.ui.navigation.SmartHomeApp
+import com.smarthome.app.ui.navigation.SmartHomeNavGraph
 import com.smarthome.app.ui.theme.SmartHomeTheme
 
 class MainActivity : ComponentActivity() {
@@ -15,7 +15,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             SmartHomeTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    SmartHomeApp()
+                    SmartHomeNavGraph()
                 }
             }
         }
