@@ -1,0 +1,498 @@
+1)java/com/smarthome/app/data/messaging/SmartHomeMessagingService.kt
+package com.smarthome.app.data.messaging
+
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import com.google.firebase.messaging.FirebaseMessagingService
+import com.google.firebase.messaging.RemoteMessage
+import com.smarthome.app.R
+
+/**
+ * Receives push notifications sent by the Cloud Function safety-cutoff worker
+ * when a safety-critical device (e.g. an iron) exceeds its max_on_duration
+ * and has been force-flipped to OFF server-side.
+ */
+class SmartHomeMessagingService : FirebaseMessagingService() {
+
+    override fun onMessageReceived(message: RemoteMessage) {
+        val title = message.notification?.title ?: "Safety Alert"
+        val body = message.notification?.body ?: "A device was automatically turned off."
+        showNotification(title, body)
+    }
+
+    override fun onNewToken(token: String) {
+        // In a full implementation, persist this token under
+        // /users/{uid}/fcmTokens/{token} so the Cloud Function can target this device.
+    }
+
+    private fun showNotification(title: String, body: String) {
+        val channelId = "safety_alerts"
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId, "Safety Alerts", NotificationManager.IMPORTANCE_HIGH
+            )
+            manager.createNotificationChannel(channel)
+        }
+
+        val notification = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .build()
+
+        manager.notify(System.currentTimeMillis().toInt(), notification)
+    }
+}
+
+
+2)java/com/smarthome/app/data/model/Device.kt
+package com.smarthome.app.data.model
+
+/**
+ * A single addressable switch inside a Multi-Switch gang-box unit.
+ */
+data class SubSwitch(
+    val id: String = "",
+    val label: String = "",
+    val status: DeviceStatus = DeviceStatus.OFF
+)
+
+/**
+ * Unified device model. Not every field applies to every DeviceType —
+ * fields are nullable/defaulted so a single flat schema can represent
+ * outlets, multi-switches, scheduled appliances, light schedules and cameras.
+ *
+ * Firebase RTDB path: /floors/{floorId}/devices/{deviceId}
+ */
+data class Device(
+    val id: String = "",
+    val name: String = "",
+    val type: DeviceType = DeviceType.OUTLET,
+    val status: DeviceStatus = DeviceStatus.OFF,
+
+    // Grid placement on the abstract floor-plan overlay
+    val gridX: Int = 0,
+    val gridY: Int = 0,
+
+    // Phase 8: which Room (Hall, Kitchen, ...) this device belongs to,
+    // derived from which room's cells contain (gridX, gridY) at creation
+    // time. Null means "unassigned" — devices placed before rooms existed,
+    // or placed outside any defined room boundary.
+    val roomId: String? = null,
+
+    // Multi-switch unit: list of individually addressable sub-switches
+    val subSwitches: List<SubSwitch> = emptyList(),
+
+    // Scheduled / fire-hazard appliances (irons, etc.)
+    val maxOnDurationSeconds: Long? = null,
+    val turnedOnAtEpochMs: Long? = null,
+
+    // Light schedule window (HH:mm 24h strings)
+    val scheduleStart: String? = null,
+    val scheduleEnd: String? = null,
+    val scheduleEnabled: Boolean = false,
+
+    // Camera
+    val snapshotUrl: String? = null,
+    val streamUri: String? = null,
+
+    // Reporting
+    val lastToggledAtEpochMs: Long? = null,
+    val totalOnTimeSeconds: Long = 0L
+) {
+    // Note: all properties have default values, so Kotlin already generates the
+    // no-arg constructor Firebase's deserializer needs.
+
+    fun isSafetyCritical(): Boolean =
+        type == DeviceType.SCHEDULED_APPLIANCE && maxOnDurationSeconds != null
+}
+
+
+3)java/com/smarthome/app/data/model/DeviceEnums.kt
+package com.smarthome.app.data.model
+
+/**
+ * Operational status of any device in the system.
+ * Mirrors the "status" field stored in Firebase Realtime Database.
+ */
+enum class DeviceStatus {
+    ON, OFF, ERROR, DISCONNECTED;
+
+    companion object {
+        fun fromString(value: String?): DeviceStatus =
+            entries.firstOrNull { it.name.equals(value, ignoreCase = true) } ?: DISCONNECTED
+    }
+}
+
+/**
+ * The heterogeneous device profiles required by the spec.
+ */
+enum class DeviceType {
+    OUTLET,          // simple single-node binary power supply
+    MULTI_SWITCH,    // gang-box with N individually addressable switches
+    SCHEDULED_APPLIANCE, // fire-hazard-prone appliances (irons) with max_on_duration
+    LIGHT_SCHEDULE,  // light bulbs with an on/off preset time window
+    CAMERA;          // mock camera snapshot / stream
+
+    companion object {
+        fun fromString(value: String?): DeviceType =
+            entries.firstOrNull { it.name.equals(value, ignoreCase = true) } ?: OUTLET
+    }
+}
+
+
+
+
+4)java/com/smarthome/app/data/model/Floor.kt
+package com.smarthome.app.data.model
+
+/**
+ * A house floor. `planImageRes` points to a bundled sample floor-plan drawable;
+ * the abstract grid (gridCols x gridRows) is overlaid on top of it and devices
+ * are placed at (gridX, gridY) cells within that grid.
+ *
+ * `iconEmoji` is a lightweight thumbnail for the Dashboard list (Phase 2) —
+ * added ahead of Phase 3's real floor-plan images so the Dashboard has a
+ * visual identifier per floor without depending on drawable assets yet.
+ *
+ * Firebase RTDB path: /floors/{floorId}
+ */
+data class Floor(
+    val id: String = "",
+    val name: String = "",
+    val planImageName: String = "",   // drawable resource name, e.g. "floor_plan_1"
+    val gridCols: Int = 8,
+    val gridRows: Int = 6,
+    val order: Int = 0,
+    val iconEmoji: String = "🏠"      // Dashboard thumbnail; user picks at creation
+)
+
+
+5)java/com/smarthome/app/data/model/Room.kt
+package com.smarthome.app.data.model
+
+/**
+ * A named zone within a floor (Hall, Kitchen, Bathroom, Bedroom, ...).
+ * Each room has its own independent abstract grid — devices are placed at
+ * (gridX, gridY) within THIS room's grid, not the floor's.
+ *
+ * Firebase RTDB path: /floors/{floorId}/rooms/{roomId}
+ */
+data class Room(
+    val id: String = "",
+    val name: String = "",
+    val icon: String = "🏠",
+    val gridCols: Int = 6,
+    val gridRows: Int = 4,
+    val cells: List<String> = emptyList()
+) {
+    fun containsCell(x: Int, y: Int): Boolean = cells.contains(cellKey(x, y))
+
+    companion object {
+        fun cellKey(x: Int, y: Int): String = "$x,$y"
+    }
+}
+
+// A small curated set of room types with sensible default icons — user can
+// still type any custom name, this just speeds up the common case.
+val ROOM_TYPE_PRESETS = listOf(
+    "Hall" to "🛋️",
+    "Kitchen" to "🍳",
+    "Bedroom" to "🛏️",
+    "Bathroom" to "🛁",
+    "Garage" to "🚗",
+    "Living Room" to "📺",
+    "Dining Room" to "🍽️",
+    "Office" to "💼"
+)
+
+
+6)java/com/smarthome/app/data/repository/SmartHomeRepository.kt
+package com.smarthome.app.data.repository
+
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
+import com.smarthome.app.data.model.Device
+import com.smarthome.app.data.model.Floor
+import com.smarthome.app.data.model.Room
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.tasks.await
+
+/**
+ * Single source of truth for all Firebase Realtime Database reads/writes.
+ *
+ * Bidirectional sync design:
+ *  - Writes (toggleDevice, addFloor, ...) push directly to RTDB.
+ *  - Reads use `addValueEventListener`, exposed as Kotlin Flows, so any
+ *    change made anywhere (this app, another device, or the Cloud Function
+ *    safety-cutoff worker) is pushed to the UI automatically — no manual
+ *    refresh/polling needed.
+ */
+/** Pairs a Device with its parent floor's name — used by the Reports screen
+ *  which needs to show devices from across every floor at once. */
+data class DeviceWithFloor(
+    val device: Device,
+    val floorName: String
+)
+
+class SmartHomeRepository(
+    private val db: FirebaseDatabase = FirebaseDatabase.getInstance(
+        "https://smart-home-app-68cf4-default-rtdb.asia-southeast1.firebasedatabase.app"
+    )
+) {
+    private val floorsRef = db.getReference("floors")
+
+    /** Live stream of all floors, ordered by `order`. */
+    fun observeFloors(): Flow<List<Floor>> = callbackFlow {
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val floors = snapshot.children.mapNotNull { it.getValue(Floor::class.java) }
+                    .sortedBy { it.order }
+                trySend(floors)
+            }
+            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+        }
+        floorsRef.addValueEventListener(listener)
+        awaitClose { floorsRef.removeEventListener(listener) }
+    }
+
+    /** Live stream of every device belonging to one floor. */
+    fun observeDevices(floorId: String): Flow<List<Device>> = callbackFlow {
+        val ref = floorsRef.child(floorId).child("devices")
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val devices = snapshot.children.mapNotNull { it.getValue(Device::class.java) }
+                trySend(devices)
+            }
+            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+        }
+        ref.addValueEventListener(listener)
+        awaitClose { ref.removeEventListener(listener) }
+    }
+
+    /** Live stream of a single device (used for the device detail screen). */
+    fun observeDevice(floorId: String, deviceId: String): Flow<Device?> = callbackFlow {
+        val ref = floorsRef.child(floorId).child("devices").child(deviceId)
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                trySend(snapshot.getValue(Device::class.java))
+            }
+            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+        }
+        ref.addValueEventListener(listener)
+        awaitClose { ref.removeEventListener(listener) }
+    }
+
+    suspend fun addFloor(floor: Floor) {
+        floorsRef.child(floor.id).setValue(floor).await()
+    }
+
+    /** Phase 2: rename a floor in place (used by the Dashboard's rename menu action). */
+    suspend fun renameFloor(floorId: String, newName: String) {
+        floorsRef.child(floorId).child("name").setValue(newName).await()
+    }
+
+    /** Phase 2: delete a floor and everything under it (its devices go too). */
+    suspend fun deleteFloor(floorId: String) {
+        floorsRef.child(floorId).removeValue().await()
+    }
+
+    suspend fun addDevice(floorId: String, device: Device) {
+        floorsRef.child(floorId).child("devices").child(device.id).setValue(device).await()
+    }
+
+    /** Live stream of every room defined on a floor. */
+    fun observeRooms(floorId: String): Flow<List<Room>> = callbackFlow {
+        val ref = floorsRef.child(floorId).child("rooms")
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val rooms = snapshot.children.mapNotNull { it.getValue(Room::class.java) }
+                trySend(rooms)
+            }
+            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+        }
+        ref.addValueEventListener(listener)
+        awaitClose { ref.removeEventListener(listener) }
+    }
+
+    suspend fun addRoom(floorId: String, room: Room) {
+        floorsRef.child(floorId).child("rooms").child(room.id).setValue(room).await()
+    }
+
+    suspend fun deleteRoom(floorId: String, roomId: String) {
+        floorsRef.child(floorId).child("rooms").child(roomId).removeValue().await()
+    }
+
+    /** Simple ON/OFF toggle for outlets and lights. Stamps turnedOnAtEpochMs
+     *  whenever a device turns ON (used both for safety cutoff and for
+     *  Phase 6 reporting), and accumulates totalOnTimeSeconds whenever it
+     *  turns OFF, based on how long it was actually ON for. */
+    suspend fun toggleDevice(floorId: String, device: Device) {
+        val ref = floorsRef.child(floorId).child("devices").child(device.id)
+        val turningOn = device.status != com.smarthome.app.data.model.DeviceStatus.ON
+        val newStatus = if (turningOn) com.smarthome.app.data.model.DeviceStatus.ON
+        else com.smarthome.app.data.model.DeviceStatus.OFF
+        val now = System.currentTimeMillis()
+
+        val updates = mutableMapOf<String, Any?>(
+            "status" to newStatus.name,
+            "lastToggledAtEpochMs" to now
+        )
+
+        if (turningOn) {
+            updates["turnedOnAtEpochMs"] = now
+        } else {
+            updates["turnedOnAtEpochMs"] = null
+            val sessionStart = device.turnedOnAtEpochMs
+            if (sessionStart != null) {
+                val elapsedSeconds = (now - sessionStart) / 1000
+                updates["totalOnTimeSeconds"] = device.totalOnTimeSeconds + elapsedSeconds
+            }
+        }
+        ref.updateChildren(updates).await()
+    }
+
+    /**
+     * Live stream of every device across every floor, paired with its
+     * floor's name for display. Powers the Phase 6 Reports screen, which
+     * needs a global view rather than one floor at a time like
+     * observeDevices() above.
+     */
+    fun observeAllDevices(): Flow<List<DeviceWithFloor>> = callbackFlow {
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val result = mutableListOf<DeviceWithFloor>()
+                for (floorSnap in snapshot.children) {
+                    val floorName = floorSnap.child("name").getValue(String::class.java) ?: "Unknown Floor"
+                    val devicesSnap = floorSnap.child("devices")
+                    for (deviceSnap in devicesSnap.children) {
+                        val device = deviceSnap.getValue(Device::class.java) ?: continue
+                        result.add(DeviceWithFloor(device, floorName))
+                    }
+                }
+                trySend(result)
+            }
+            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+        }
+        floorsRef.addValueEventListener(listener)
+        awaitClose { floorsRef.removeEventListener(listener) }
+    }
+
+    /** Toggle one sub-switch inside a multi-switch gang-box unit. */
+    suspend fun toggleSubSwitch(floorId: String, deviceId: String, subSwitchId: String, newStatus: com.smarthome.app.data.model.DeviceStatus) {
+        val ref = floorsRef.child(floorId).child("devices").child(deviceId)
+            .child("subSwitches")
+        // Sub-switches are stored as a list; we fetch, mutate, and rewrite the changed index.
+        // For simplicity/atomicity in a mini-project this uses a transaction-free read-modify-write.
+        ref.get().await().children.forEachIndexed { index, snap ->
+            if (snap.child("id").getValue(String::class.java) == subSwitchId) {
+                ref.child(index.toString()).child("status").setValue(newStatus.name).await()
+            }
+        }
+    }
+
+    suspend fun updateSchedule(floorId: String, deviceId: String, start: String, end: String, enabled: Boolean) {
+        floorsRef.child(floorId).child("devices").child(deviceId).updateChildren(
+            mapOf(
+                "scheduleStart" to start,
+                "scheduleEnd" to end,
+                "scheduleEnabled" to enabled
+            )
+        ).await()
+    }
+
+    /**
+     * Client-side safety-cutoff fallback (see FloorPlanViewModel) — force a
+     * device OFF and record why, mirroring what functions/index.js does on
+     * the backend. Only used because our Firebase project is on the Spark
+     * tier and cannot run the real Cloud Function. Also accumulates
+     * totalOnTimeSeconds, same as a normal toggle-off, so Reports stays
+     * accurate even when a device is cut off automatically rather than by
+     * the user.
+     */
+    suspend fun forceOff(floorId: String, deviceId: String, reason: String, sessionStartEpochMs: Long? = null) {
+        val now = System.currentTimeMillis()
+        val updates = mutableMapOf<String, Any?>(
+            "status" to com.smarthome.app.data.model.DeviceStatus.OFF.name,
+            "turnedOnAtEpochMs" to null,
+            "lastToggledAtEpochMs" to now,
+            "lastCutoffReason" to reason
+        )
+        if (sessionStartEpochMs != null) {
+            val elapsedSeconds = (now - sessionStartEpochMs) / 1000
+            floorsRef.child(floorId).child("devices").child(deviceId).child("totalOnTimeSeconds").get().await()
+                .getValue(Long::class.java)?.let { current ->
+                    updates["totalOnTimeSeconds"] = current + elapsedSeconds
+                } ?: run { updates["totalOnTimeSeconds"] = elapsedSeconds }
+        }
+        floorsRef.child(floorId).child("devices").child(deviceId).updateChildren(updates).await()
+    }
+
+    /** Client-side light-schedule fallback — same idea as forceOff above. */
+    suspend fun setScheduledStatus(floorId: String, deviceId: String, status: com.smarthome.app.data.model.DeviceStatus) {
+        floorsRef.child(floorId).child("devices").child(deviceId).updateChildren(
+            mapOf(
+                "status" to status.name,
+                "lastToggledAtEpochMs" to System.currentTimeMillis()
+            )
+        ).await()
+    }
+}
+
+
+7)java/com/smarthome/app/MainActivity.kt
+package com.smarthome.app
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier
+import com.smarthome.app.ui.navigation.SmartHomeNavGraph
+import com.smarthome.app.ui.theme.SmartHomeTheme
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            SmartHomeTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    SmartHomeNavGraph()
+                }
+            }
+        }
+    }
+}
+
+
+8)java/com/smarthome/app/SmartHomeApplication.kt
+package com.smarthome.app
+
+import android.app.Application
+import com.google.firebase.FirebaseApp
+
+class SmartHomeApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        FirebaseApp.initializeApp(this)
+    }
+}
+
+
+
+
+I think these things most probablly cant change this
+
+This is prompt 1 wait until prompt 2

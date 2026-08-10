@@ -1,0 +1,729 @@
+1)java/com/smarthome/app/ui/device/DeviceDetailScreen.kt
+package com.smarthome.app.ui.device
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.smarthome.app.data.model.Device
+import com.smarthome.app.data.model.DeviceType
+import com.smarthome.app.ui.theme.BackgroundLight
+import com.smarthome.app.ui.theme.PrimaryBlue
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DeviceDetailScreen(
+    floorId: String,
+    device: Device,
+    onBack: () -> Unit
+) {
+    // device.id is stable even though the object itself is a point-in-time
+    // snapshot from the floor plan list — the ViewModel below takes over
+    // observing live state keyed on that id.
+    val viewModel: DeviceDetailViewModel = viewModel(
+        key = device.id,
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
+                DeviceDetailViewModel(floorId, device.id) as T
+        }
+    )
+
+    // Live device from Firebase; falls back to the snapshot passed in until
+    // the first Firebase read lands, so the screen never shows blank.
+    val liveDevice by viewModel.device.collectAsState()
+    val currentDevice = liveDevice ?: device
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(text = currentDevice.name, color = Color.White) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = PrimaryBlue)
+            )
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(BackgroundLight)
+                .padding(paddingValues)
+                .padding(16.dp)
+        ) {
+            if (liveDevice == null) {
+                // Device was deleted from Firebase (e.g. floor cleanup) while
+                // this screen was open — show that clearly instead of a stale
+                // control that silently does nothing when toggled.
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("This device is no longer available.")
+                }
+                return@Column
+            }
+
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                shape = MaterialTheme.shapes.large,
+                tonalElevation = 3.dp
+            ) {
+                when (currentDevice.type) {
+                    DeviceType.OUTLET -> OutletControl(
+                        device = currentDevice,
+                        onToggle = { viewModel.toggleDevice() }
+                    )
+                    DeviceType.MULTI_SWITCH -> MultiSwitchControl(
+                        device = currentDevice,
+                        onToggleSubSwitch = { id, status -> viewModel.toggleSubSwitch(id, status) }
+                    )
+                    DeviceType.SCHEDULED_APPLIANCE -> ScheduledApplianceControl(
+                        device = currentDevice,
+                        onToggle = { viewModel.toggleDevice() }
+                    )
+                    DeviceType.LIGHT_SCHEDULE -> LightScheduleControl(
+                        device = currentDevice,
+                        onSaveSchedule = { start, end, enabled -> viewModel.updateSchedule(start, end, enabled) }
+                    )
+                    DeviceType.CAMERA -> CameraControl(device = currentDevice)
+                }
+            }
+        }
+    }
+}
+
+
+2)java/com/smarthome/app/ui/device/DeviceDetailViewModel.kt
+package com.smarthome.app.ui.device
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.smarthome.app.data.model.Device
+import com.smarthome.app.data.model.DeviceStatus
+import com.smarthome.app.data.repository.SmartHomeRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+/**
+ * Phase 4 fix: the previous DeviceDetailScreen was handed a static Device
+ * snapshot and every control only mutated local remember{} state — nothing
+ * was ever written to Firebase, and nothing reflected live changes (e.g. the
+ * Cloud Function safety-cutoff force-flipping status to OFF). This ViewModel
+ * observes the device live and exposes writes that go through the repository,
+ * same pattern as FloorPlanViewModel/DashboardViewModel.
+ */
+class DeviceDetailViewModel(
+    private val floorId: String,
+    private val deviceId: String,
+    private val repository: SmartHomeRepository = SmartHomeRepository()
+) : ViewModel() {
+
+    private val _device = MutableStateFlow<Device?>(null)
+    val device: StateFlow<Device?> = _device.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            repository.observeDevice(floorId, deviceId).collect { _device.value = it }
+        }
+    }
+
+    fun toggleDevice() {
+        val current = _device.value ?: return
+        viewModelScope.launch { repository.toggleDevice(floorId, current) }
+    }
+
+    fun toggleSubSwitch(subSwitchId: String, newStatus: DeviceStatus) {
+        viewModelScope.launch { repository.toggleSubSwitch(floorId, deviceId, subSwitchId, newStatus) }
+    }
+
+    fun updateSchedule(start: String, end: String, enabled: Boolean) {
+        viewModelScope.launch { repository.updateSchedule(floorId, deviceId, start, end, enabled) }
+    }
+}
+
+
+3)java/com/smarthome/app/ui/device/CameraControl.kt
+package com.smarthome.app.ui.device
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.VideocamOff
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import com.smarthome.app.data.model.Device
+
+@Composable
+fun CameraControl(device: Device) {
+    Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
+        Text(text = device.name, style = MaterialTheme.typography.headlineMedium)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier.fillMaxWidth().height(220.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                val snapshotUrl = device.snapshotUrl
+                if (!snapshotUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = snapshotUrl,
+                        contentDescription = "Camera snapshot for ${device.name}",
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.VideocamOff,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = "No stream configured")
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(text = "Device Information", style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(text = "Type: Security Camera")
+                Text(
+                    text = if (device.snapshotUrl.isNullOrBlank())
+                        "Stream: Not configured"
+                    else
+                        "Stream: Mock snapshot"
+                )
+            }
+        }
+    }
+}
+
+
+4)java/com/smarthome/app/ui/device/LightScheduleControl.kt
+package com.smarthome.app.ui.device
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.smarthome.app.data.model.Device
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
+
+private val TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm")
+
+/** Phase 4 checklist: validate HH:mm input, show the next scheduled transition. */
+private fun isValidTime(value: String): Boolean =
+    try {
+        LocalTime.parse(value, TIME_FORMATTER)
+        true
+    } catch (e: DateTimeParseException) {
+        false
+    }
+
+private fun nextTransitionText(start: String?, end: String?, enabled: Boolean): String {
+    if (!enabled || start == null || end == null || !isValidTime(start) || !isValidTime(end)) {
+        return "Schedule not active"
+    }
+    val now = LocalTime.now()
+    val startTime = LocalTime.parse(start, TIME_FORMATTER)
+    val endTime = LocalTime.parse(end, TIME_FORMATTER)
+
+    // Figure out which edge comes next, handling the case where the window
+    // wraps past midnight (e.g. 22:00 -> 06:00).
+    return if (now.isBefore(startTime)) {
+        "Turns on at $start"
+    } else if (now.isBefore(endTime) || endTime.isBefore(startTime)) {
+        "Turns off at $end"
+    } else {
+        "Turns on at $start"
+    }
+}
+
+@Composable
+fun LightScheduleControl(
+    device: Device,
+    onSaveSchedule: (start: String, end: String, enabled: Boolean) -> Unit
+) {
+    var startInput by remember(device.id) { mutableStateOf(device.scheduleStart ?: "18:00") }
+    var endInput by remember(device.id) { mutableStateOf(device.scheduleEnd ?: "06:00") }
+    var enabledInput by remember(device.id) { mutableStateOf(device.scheduleEnabled) }
+
+    val startValid = isValidTime(startInput)
+    val endValid = isValidTime(endInput)
+
+    Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
+        Text(text = "Light Schedule", style = MaterialTheme.typography.headlineMedium)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = device.name, style = MaterialTheme.typography.titleMedium)
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(
+                    text = nextTransitionText(device.scheduleStart, device.scheduleEnd, device.scheduleEnabled),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Schedule Enabled")
+                    Switch(checked = enabledInput, onCheckedChange = { enabledInput = it })
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = startInput,
+                    onValueChange = { startInput = it },
+                    label = { Text("On time (HH:mm)") },
+                    isError = !startValid,
+                    supportingText = { if (!startValid) Text("Use 24-hour HH:mm, e.g. 18:00") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = endInput,
+                    onValueChange = { endInput = it },
+                    label = { Text("Off time (HH:mm)") },
+                    isError = !endValid,
+                    supportingText = { if (!endValid) Text("Use 24-hour HH:mm, e.g. 06:00") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Button(
+                    onClick = { onSaveSchedule(startInput, endInput, enabledInput) },
+                    enabled = startValid && endValid,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Save Schedule")
+                }
+            }
+        }
+    }
+}
+
+
+5)java/com/smarthome/app/ui/device/MultiSwitchControl.kt
+package com.smarthome.app.ui.device
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import com.smarthome.app.R
+import com.smarthome.app.data.model.Device
+import com.smarthome.app.data.model.DeviceStatus
+import com.smarthome.app.data.model.SubSwitch
+
+@Composable
+fun MultiSwitchControl(
+    device: Device,
+    onToggleSubSwitch: (subSwitchId: String, newStatus: DeviceStatus) -> Unit
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Image(
+            painter = painterResource(id = R.drawable.switch_board),
+            contentDescription = "Switch Board",
+            modifier = Modifier.height(120.dp).fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(text = device.name, style = MaterialTheme.typography.headlineSmall)
+        Text(text = "Multi Switch Board", style = MaterialTheme.typography.bodyMedium)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (device.subSwitches.isEmpty()) {
+            // Phase 7 edge case: a multi-switch unit with zero configured
+            // sub-switches — shouldn't show a blank list with no explanation.
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(text = "No sub-switches configured for this unit.")
+            return
+        }
+
+        Text(text = "Total Switches: ${device.subSwitches.size}", style = MaterialTheme.typography.bodyLarge)
+
+        device.subSwitches.forEach { subSwitch ->
+            SubSwitchRow(subSwitch = subSwitch, onToggle = { newStatus ->
+                onToggleSubSwitch(subSwitch.id, newStatus)
+            })
+        }
+    }
+}
+
+@Composable
+private fun SubSwitchRow(subSwitch: SubSwitch, onToggle: (DeviceStatus) -> Unit) {
+    val isOn = subSwitch.status == DeviceStatus.ON
+
+    Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = subSwitch.label)
+                Switch(
+                    checked = isOn,
+                    onCheckedChange = { checked ->
+                        onToggle(if (checked) DeviceStatus.ON else DeviceStatus.OFF)
+                    }
+                )
+            }
+            Text(text = subSwitch.status.name)
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+
+6)java/com/smarthome/app/ui/device/OutletControl.kt
+package com.smarthome.app.ui.device
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Power
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import com.smarthome.app.R
+import com.smarthome.app.data.model.Device
+import com.smarthome.app.data.model.DeviceStatus
+import com.smarthome.app.ui.theme.StatusOff
+import com.smarthome.app.ui.theme.StatusOn
+
+@Composable
+fun OutletControl(device: Device, onToggle: () -> Unit) {
+    // Reads status straight from the live `device` passed down from
+    // DeviceDetailScreen — no local mutable state, so a toggle from another
+    // phone or the backend safety worker shows up here immediately too.
+    val isOn = device.status == DeviceStatus.ON
+
+    Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
+        Text(text = "Outlet Control", style = MaterialTheme.typography.headlineMedium)
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Image(
+                        painter = painterResource(id = R.drawable.outlet),
+                        contentDescription = "Outlet",
+                        modifier = Modifier.height(120.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Power,
+                            contentDescription = null,
+                            tint = if (isOn) StatusOn else StatusOff
+                        )
+                        Spacer(modifier = Modifier.padding(8.dp))
+                        Column {
+                            Text(text = device.name, style = MaterialTheme.typography.titleLarge)
+                            Text(text = "Power Outlet", style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+                Text(text = "Status")
+                Text(
+                    text = when (device.status) {
+                        DeviceStatus.ON -> "ON"
+                        DeviceStatus.OFF -> "OFF"
+                        DeviceStatus.ERROR -> "ERROR"
+                        DeviceStatus.DISCONNECTED -> "DISCONNECTED"
+                    },
+                    color = if (isOn) StatusOn else StatusOff,
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Power")
+                    Switch(
+                        // Toggle is disabled if the device is reporting ERROR or
+                        // DISCONNECTED — matches Phase 7's "display distinctly" goal;
+                        // there's no point letting the user flip a switch that isn't
+                        // actually connected.
+                        enabled = device.status == DeviceStatus.ON || device.status == DeviceStatus.OFF,
+                        checked = isOn,
+                        onCheckedChange = { onToggle() }
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(text = "Device Information", style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(text = "Type: Electrical Outlet")
+                Text(
+                    text = "Connection: ${
+                        if (device.status == DeviceStatus.DISCONNECTED) "Offline" else "Online"
+                    }"
+                )
+            }
+        }
+    }
+}
+
+
+7)java/com/smarthome/app/ui/device/ScheduledApplianceControl.kt
+package com.smarthome.app.ui.device
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import com.smarthome.app.R
+import com.smarthome.app.data.model.Device
+import com.smarthome.app.data.model.DeviceStatus
+import kotlinx.coroutines.delay
+
+// Warn once less than this many seconds remain, not only after cutoff hits —
+// this was the specific Phase 4 checklist item that was missing.
+private const val WARNING_THRESHOLD_SECONDS = 60L
+
+@Composable
+fun ScheduledApplianceControl(device: Device, onToggle: () -> Unit) {
+    val isOn = device.status == DeviceStatus.ON
+    var remainingSeconds by remember(device.id) { mutableStateOf<Long?>(null) }
+
+    LaunchedEffect(device.id, device.turnedOnAtEpochMs, device.maxOnDurationSeconds) {
+        while (true) {
+            val maxDuration = device.maxOnDurationSeconds
+            val turnedOnAt = device.turnedOnAtEpochMs
+            if (maxDuration != null && turnedOnAt != null && isOn) {
+                val elapsedSeconds = (System.currentTimeMillis() - turnedOnAt) / 1000
+                remainingSeconds = maxOf(0, maxDuration - elapsedSeconds)
+            } else {
+                remainingSeconds = null
+            }
+            delay(1000)
+        }
+    }
+
+    val isNearCutoff = remainingSeconds != null && remainingSeconds!! in 1..WARNING_THRESHOLD_SECONDS
+    val isCutoff = remainingSeconds == 0L
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Image(
+                    painter = painterResource(id = R.drawable.iron),
+                    contentDescription = "Iron",
+                    modifier = Modifier.height(120.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(text = device.name, style = MaterialTheme.typography.headlineSmall)
+                Text(text = "Safety Scheduled Appliance", style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isNearCutoff || isCutoff)
+                    MaterialTheme.colorScheme.errorContainer
+                else
+                    MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(text = "Safety Information", style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(text = "Maximum ON Duration: ${device.maxOnDurationSeconds ?: "Not configured"} seconds")
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = if (remainingSeconds != null) {
+                        "Remaining Time: ${formatTime(remainingSeconds!!)}"
+                    } else {
+                        "Remaining Time: Not applicable"
+                    }
+                )
+
+                if (isNearCutoff) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "⚠ Approaching maximum ON duration — will auto shut off soon.",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                if (isCutoff) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "⚠ Maximum ON duration reached — device was automatically shut off.",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(20.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "Power Control")
+                Switch(
+                    checked = isOn,
+                    enabled = device.status == DeviceStatus.ON || device.status == DeviceStatus.OFF,
+                    onCheckedChange = { onToggle() }
+                )
+            }
+        }
+    }
+}
+
+fun formatTime(seconds: Long): String {
+    val minutes = seconds / 60
+    val remainingSeconds = seconds % 60
+    return String.format("%02d:%02d", minutes, remainingSeconds)
+}
+
+
+9)java/com/smarthome/app/ui/theme/Color.kt
+package com.smarthome.app.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+
+// Device Status Colors
+val StatusOn = Color(0xFF2ECC71)
+val StatusOff = Color(0xFF95A5A6)
+val StatusError = Color(0xFFE74C3C)
+val StatusDisconnected = Color(0xFFBDC3C7)
+
+// Existing Theme Colors
+val PrimaryBlue = Color(0xFF2C6E91)
+val PrimaryBlueDark = Color(0xFF1B4B66)
+val BackgroundLight = Color(0xFFF5F7FA)
+val SurfaceLight = Color(0xFFFFFFFF)
+
+
+// New Smart Home Dashboard Colors
+val BackgroundDark = Color(0xFF08111F)
+val SurfaceDark = Color(0xFF111C2D)
+val SurfaceDarkSecondary = Color(0xFF16243A)
+val PrimaryCyan = Color(0xFF22D3EE)
+val SuccessGreen = Color(0xFF10B981)
+val ErrorRed = Color(0xFFF87171)
+val TextPrimary = Color(0xFFF8FAFC)
+val TextSecondary = Color(0xFF94A3B8)
+
+
+
+10)java/com/smarthome/app/ui/theme/Theme.kt
+package com.smarthome.app.ui.theme
+
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
+
+private val LightColors = lightColorScheme(
+    primary = PrimaryBlue,
+    background = BackgroundLight,
+    surface = SurfaceLight
+)
+
+private val DarkColors = darkColorScheme(
+    primary = PrimaryCyan,
+    background = BackgroundDark,
+    surface = SurfaceDark,
+    onBackground = TextPrimary,
+    onSurface = TextPrimary
+)
+
+@Composable
+fun SmartHomeTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit
+) {
+    val colors = if (darkTheme) DarkColors else LightColors
+    MaterialTheme(colorScheme = colors, content = content)
+}
+
+
+
+
+
+This is prompt 3
