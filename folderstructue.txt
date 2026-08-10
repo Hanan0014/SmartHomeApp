@@ -1,3 +1,5 @@
+my folder structure for now is 
+
 SMARTHOMEAPP
 |
 |____.gradle/
