@@ -15,6 +15,7 @@ SMARTHOMEAPP
 |     |            |             |      |        |____Device.kt
 |     |            |             |      |        |____DeviceEnums.kt
 |     |            |             |      |        |____Floor.kt
+|     |            |             |      |        |____Romm.kt
 |     |            |             |      |       
 |     |            |             |      |____repository/
 |     |            |             |               |____SmartHomeRepository.kt
@@ -31,13 +32,9 @@ SMARTHOMEAPP
 |     |            |             |      |____dashboard/
 |     |            |             |      |        |____DashboardScreen.kt
 |     |            |             |      |        |____DashboardViewModel.kt
-|     |            |             |      |        |____dashboard-components/
+|     |            |             |      |        |____components/
 |     |            |             |      |                 |____DashboardHeader.kt
-|     |            |             |      |                 |____StatsSection.kt
 |     |            |             |      |                 |____FloorCard.kt
-|     |            |             |      |                 |____RecentDevicesSection.kt
-|     |            |             |      |                 |____EnergySnapshot.kt
-|     |            |             |      |                 |____NotificationDrawer.kt
 |     |            |             |      |        
 |     |            |             |      |____device/
 |     |            |             |      |        |____CameraControl.kt
@@ -49,9 +46,10 @@ SMARTHOMEAPP
 |     |            |             |      |        |____ScheduledApplianceControl.kt
 |     |            |             |      |        
 |     |            |             |      |____floorplan/
+|     |            |             |      |        |____AddDeviceDialog.kt
 |     |            |             |      |        |____FloorPlanScreen.kt
 |     |            |             |      |        |____FloorPlanViewModel.kt
-|     |            |             |      |        |____AddDeviceDialog.kt
+|     |            |             |      |        |____RoomScreen.kt
 |     |            |             |      |       
 |     |            |             |      |____navigation/
 |     |            |             |      |        |____BottomNavBar.kt
@@ -91,6 +89,8 @@ SMARTHOMEAPP
 |____full_source.zip
 |____gradle.properties
 |____local.properties
+|____prompt-1.txt
+|____prompt-2.txt
 |____README.md
 |____settings.gradle.kts
 |____source_only.zip
