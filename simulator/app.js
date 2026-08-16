@@ -51,7 +51,7 @@ const STATUSES = ["ON", "OFF", "ERROR", "DISCONNECTED"];
 const TYPE_META = {
   OUTLET: { icon: "🔌", label: "Outlet", heroImg: "assets/icons/outlet.png" },
   MULTI_SWITCH: { icon: "🎚️", label: "Multi-Switch", heroImg: "assets/icons/switch_board.png" },
-  SCHEDULED_APPLIANCE: { icon: "⏲️", label: "Scheduled Appliance", heroImg: "assets/icons/iron.png" },
+  SCHEDULED_APPLIANCE: { icon: "⏲️", label: "Scheduled Appliance", heroImg: "assets/icons/scheduled_appliance.jpeg" },
   LIGHT_SCHEDULE: { icon: "💡", label: "Light Schedule", heroImg: null },
   CAMERA: { icon: "📷", label: "Camera", heroImg: null },
 };

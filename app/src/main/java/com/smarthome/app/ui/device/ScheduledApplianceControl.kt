@@ -50,8 +50,8 @@ fun ScheduledApplianceControl(device: Device, onToggle: () -> Unit) {
         ) {
             Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Image(
-                    painter = painterResource(id = R.drawable.iron),
-                    contentDescription = "Iron",
+                    painter = painterResource(id = R.drawable.scheduled_appliance),
+                    contentDescription = "Scheduled Appliance",
                     modifier = Modifier.height(120.dp)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
