@@ -5,6 +5,9 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+import androidx.compose.ui.Modifier
 import com.smarthome.app.data.model.Device
 import com.smarthome.app.data.model.Floor
 import com.smarthome.app.data.model.Room
@@ -32,55 +35,65 @@ private var selectedDevice: Device? = null
 
 @Composable
 fun SmartHomeNavGraph(navController: NavHostController = rememberNavController()) {
-    NavHost(navController = navController, startDestination = Routes.DASHBOARD) {
-        composable(Routes.DASHBOARD) {
-            DashboardScreen(
-                onFloorSelected = { floor ->
-                    selectedFloor = floor
-                    navController.navigate(Routes.FLOOR_PLAN)
-                },
-                onReportsClick = { navController.navigate(Routes.REPORTS) }
-            )
+
+    Scaffold(
+        bottomBar = {
+            BottomNavBar(navController)
         }
-        composable(Routes.FLOOR_PLAN) {
-            val floor = selectedFloor ?: return@composable
-            FloorPlanScreen(
-                floor = floor,
-                onBack = { navController.popBackStack() },
-                onDeviceSelected = { device ->
-                    selectedDevice = device
-                    navController.navigate(Routes.DEVICE_DETAIL)
-                },
-                onRoomSelected = { room ->
-                    selectedRoom = room
-                    navController.navigate(Routes.ROOM)
-                }
-            )
+    ) { paddingValues ->
+
+        NavHost(navController = navController, startDestination = Routes.DASHBOARD, modifier = Modifier.padding(paddingValues)) {
+            composable(Routes.DASHBOARD) {
+                DashboardScreen(
+                    onFloorSelected = { floor ->
+                        selectedFloor = floor
+                        navController.navigate(Routes.FLOOR_PLAN)
+                    },
+                    onReportsClick = { navController.navigate(Routes.REPORTS) }
+                )
+            }
+            composable(Routes.FLOOR_PLAN) {
+                val floor = selectedFloor ?: return@composable
+                FloorPlanScreen(
+                    floor = floor,
+                    onBack = { navController.popBackStack() },
+                    onDeviceSelected = { device ->
+                        selectedDevice = device
+                        navController.navigate(Routes.DEVICE_DETAIL)
+                    },
+                    onRoomSelected = { room ->
+                        selectedRoom = room
+                        navController.navigate(Routes.ROOM)
+                    }
+                )
+            }
+            composable(Routes.ROOM) {
+                val floor = selectedFloor ?: return@composable
+                val room = selectedRoom ?: return@composable
+                RoomScreen(
+                    floorId = floor.id,
+                    room = room,
+                    onBack = { navController.popBackStack() },
+                    onDeviceSelected = { device ->
+                        selectedDevice = device
+                        navController.navigate(Routes.DEVICE_DETAIL)
+                    }
+                )
+            }
+            composable(Routes.DEVICE_DETAIL) {
+                val floor = selectedFloor ?: return@composable
+                val device = selectedDevice ?: return@composable
+                DeviceDetailScreen(
+                    floorId = floor.id,
+                    device = device,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Routes.REPORTS) {
+                ReportsScreen(onBack = { navController.popBackStack() })
+            }
         }
-        composable(Routes.ROOM) {
-            val floor = selectedFloor ?: return@composable
-            val room = selectedRoom ?: return@composable
-            RoomScreen(
-                floorId = floor.id,
-                room = room,
-                onBack = { navController.popBackStack() },
-                onDeviceSelected = { device ->
-                    selectedDevice = device
-                    navController.navigate(Routes.DEVICE_DETAIL)
-                }
-            )
-        }
-        composable(Routes.DEVICE_DETAIL) {
-            val floor = selectedFloor ?: return@composable
-            val device = selectedDevice ?: return@composable
-            DeviceDetailScreen(
-                floorId = floor.id,
-                device = device,
-                onBack = { navController.popBackStack() }
-            )
-        }
-        composable(Routes.REPORTS) {
-            ReportsScreen(onBack = { navController.popBackStack() })
-        }
+
     }
+
 }

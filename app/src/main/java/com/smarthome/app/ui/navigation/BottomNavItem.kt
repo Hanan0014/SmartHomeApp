@@ -30,12 +30,4 @@ sealed class BottomNavItem(
         "Reports",
         Icons.Default.Assessment
     )
-
-
-    object Settings : BottomNavItem(
-        "settings",
-        "Settings",
-        Icons.Default.Settings
-    )
-
 }

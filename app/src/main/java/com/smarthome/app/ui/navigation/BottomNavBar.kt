@@ -15,7 +15,6 @@ fun BottomNavBar(
         BottomNavItem.Dashboard,
         BottomNavItem.FloorPlan,
         BottomNavItem.Reports,
-        BottomNavItem.Settings
     )
 
 
