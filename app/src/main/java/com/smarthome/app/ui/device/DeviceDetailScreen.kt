@@ -47,22 +47,22 @@ fun DeviceDetailScreen(
 
     SmartHomeBackground {
         Scaffold(
+            containerColor = Color.Transparent,
             topBar = {
                 TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, titleContentColor = Color.White, navigationIconContentColor = Color.White, actionIconContentColor = Color.White),
                     title = { Text(text = currentDevice.name, color = Color.White) },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
                         }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = PrimaryBlue)
+                    }
                 )
             }
         ) { paddingValues ->
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(BackgroundLight)
                     .padding(paddingValues)
                     .padding(16.dp)
             ) {
