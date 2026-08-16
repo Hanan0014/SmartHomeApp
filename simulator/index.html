@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Smart Home &middot; Hardware Simulator</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏠</text></svg>" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ============ HEADER / RACK STRIP ============ -->
+  <header class="rack">
+    <div class="rack__brand" data-action="go-home" role="button" tabindex="0">
+      <span class="rack__logo">⌂</span>
+      <div>
+        <div class="rack__title">SMART HOME</div>
+        <div class="rack__subtitle">Hardware Simulator &mdash; localhost</div>
+      </div>
+    </div>
+
+    <nav class="rack__breadcrumb" id="breadcrumb" aria-label="Breadcrumb"></nav>
+
+    <div class="rack__status">
+      <span class="pulse-dot" id="connDot"></span>
+      <span id="connLabel">connecting&hellip;</span>
+      <span class="rack__clock" id="clock">--:--:--</span>
+    </div>
+  </header>
+
+  <!-- ============ MAIN VIEW ROOT ============ -->
+  <main id="viewRoot" class="view-root">
+    <!-- populated by app.js -->
+  </main>
+
+  <!-- ============ TOAST ============ -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- ============ DEVICE PANEL MODAL ============ -->
+  <div id="deviceModalBackdrop" class="modal-backdrop hidden" data-action="close-modal">
+    <div class="modal-panel" id="deviceModalPanel" role="dialog" aria-modal="true" onclick="event.stopPropagation()">
+      <!-- populated by app.js -->
+    </div>
+  </div>
+
+  <!-- Firebase (modular v10, ES modules — must be served over http/https, not file://) -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
