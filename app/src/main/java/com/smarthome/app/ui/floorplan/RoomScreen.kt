@@ -15,8 +15,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import java.util.UUID
@@ -26,6 +28,7 @@ import com.smarthome.app.data.model.DeviceStatus
 import com.smarthome.app.data.model.DeviceType
 import com.smarthome.app.data.model.Room
 import com.smarthome.app.data.model.SubSwitch
+import com.smarthome.app.ui.components.SmartHomeBackground
 import com.smarthome.app.ui.theme.PrimaryBlue
 
 private val SUB_SWITCH_COUNT_OPTIONS = listOf(2, 3, 5)
@@ -55,44 +58,56 @@ fun RoomScreen(
 
     var showAddDeviceDialog by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(text = "${room.icon} ${room.name}", color = Color.White) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+    SmartHomeBackground {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, titleContentColor = Color.White, navigationIconContentColor = Color.White, actionIconContentColor = Color.White),
+                    title = {
+                        Column {
+                            
+                            Text(text = room.name, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
+
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = PrimaryBlue)
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDeviceDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Add device to ${room.name}")
-            }
-        }
-    ) { padding ->
-        if (roomDevices.isEmpty()) {
-            Box(Modifier.fillMaxSize().padding(padding).padding(24.dp), contentAlignment = Alignment.Center) {
-                Text(
-                    text = "No devices in ${room.name} yet. Tap + to add one.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
                 )
+            },
+            floatingActionButton = {
+                FloatingActionButton(onClick = { showAddDeviceDialog = true }) {
+                    Icon(Icons.Default.Add, contentDescription = "Add device to ${room.name}")
+                }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(roomDevices, key = { it.id }) { device ->
-                    RoomDeviceRow(
-                        device = device,
-                        onToggle = { viewModel.toggleDevice(device) },
-                        onClick = { onDeviceSelected(device) }
+        ) { padding ->
+            if (roomDevices.isEmpty()) {
+                Box(Modifier.fillMaxSize().padding(padding).padding(24.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "No devices in ${room.name} yet. Tap + to add one.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center
                     )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(roomDevices, key = { it.id }) { device ->
+                        RoomDeviceRow(
+                            device = device,
+                            onToggle = { viewModel.toggleDevice(device) },
+                            onClick = { onDeviceSelected(device) }
+                        )
+                    }
                 }
             }
         }

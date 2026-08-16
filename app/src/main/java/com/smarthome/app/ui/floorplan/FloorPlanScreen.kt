@@ -93,12 +93,6 @@ fun FloorPlanScreen(
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold
                             )
-
-                            Text(
-                                text = floor.name,
-                                fontSize = 13.sp,
-                                color = Color(0xFF94A3B8)
-                            )
                         }
                     },
 

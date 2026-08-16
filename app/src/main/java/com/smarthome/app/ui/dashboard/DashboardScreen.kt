@@ -1,19 +1,26 @@
 package com.smarthome.app.ui.dashboard
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.smarthome.app.ui.components.SmartHomeBackground
 import com.smarthome.app.data.model.Floor
 import java.util.UUID
 
@@ -29,40 +36,44 @@ fun DashboardScreen(
     var floorPendingRename by remember { mutableStateOf<Floor?>(null) }
     var floorPendingDelete by remember { mutableStateOf<Floor?>(null) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Smart Home") },
-                actions = {
-                    IconButton(onClick = onReportsClick) {
-                        Icon(Icons.Default.Assessment, contentDescription = "Usage Reports")
+    SmartHomeBackground {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, titleContentColor = Color.White, navigationIconContentColor = Color.White, actionIconContentColor = Color.White),
+                    title = { Text("Smart Home") },
+                    actions = {
+                        IconButton(onClick = onReportsClick) {
+                            Icon(Icons.Default.Assessment, contentDescription = "Usage Reports")
+                        }
                     }
+                )
+            },
+            floatingActionButton = {
+                FloatingActionButton(onClick = { showAddDialog = true }) {
+                    Icon(Icons.Default.Add, contentDescription = "Add floor")
                 }
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Add floor")
             }
-        }
-    ) { padding ->
-        if (floors.isEmpty()) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("No floors yet. Tap + to add your first floor plan.")
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(floors, key = { it.id }) { floor ->
-                    FloorCard(
-                        floor = floor,
-                        onClick = { onFloorSelected(floor) },
-                        onRenameClick = { floorPendingRename = floor },
-                        onDeleteClick = { floorPendingDelete = floor }
-                    )
+        ) { padding ->
+            if (floors.isEmpty()) {
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    Text("No floors yet. Tap + to add your first floor plan.")
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(floors, key = { it.id }) { floor ->
+                        FloorCard(
+                            floor = floor,
+                            onClick = { onFloorSelected(floor) },
+                            onRenameClick = { floorPendingRename = floor },
+                            onDeleteClick = { floorPendingDelete = floor }
+                        )
+                    }
                 }
             }
         }
@@ -124,15 +135,32 @@ private fun FloorCard(
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
-    ElevatedCard(modifier = Modifier.fillMaxWidth().clickable { onClick() }) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+
+        shape = RoundedCornerShape(16.dp),
+
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF111827)
+        ),
+
+        border = BorderStroke(
+            1.dp,
+            Color(0xFF334155)
+        )
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
-                Text(floor.name, style = MaterialTheme.typography.titleMedium)
+                Text(floor.name, color = Color.White, fontSize = 17.sp, style = MaterialTheme.typography.titleMedium)
                 Text(
                     "${floor.gridCols} x ${floor.gridRows} grid",
+                    color = Color(0xFF94A3B8),
+                    fontSize = 14.sp,
                     style = MaterialTheme.typography.bodySmall
                 )
             }

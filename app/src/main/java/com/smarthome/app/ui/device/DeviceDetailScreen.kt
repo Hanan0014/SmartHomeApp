@@ -17,6 +17,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.smarthome.app.data.model.Device
 import com.smarthome.app.data.model.DeviceType
+import com.smarthome.app.ui.components.SmartHomeBackground
 import com.smarthome.app.ui.theme.BackgroundLight
 import com.smarthome.app.ui.theme.PrimaryBlue
 
@@ -44,59 +45,61 @@ fun DeviceDetailScreen(
     val liveDevice by viewModel.device.collectAsState()
     val currentDevice = liveDevice ?: device
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(text = currentDevice.name, color = Color.White) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = PrimaryBlue)
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(BackgroundLight)
-                .padding(paddingValues)
-                .padding(16.dp)
-        ) {
-            if (liveDevice == null) {
-                // Device was deleted from Firebase (e.g. floor cleanup) while
-                // this screen was open — show that clearly instead of a stale
-                // control that silently does nothing when toggled.
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("This device is no longer available.")
-                }
-                return@Column
+    SmartHomeBackground {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text(text = currentDevice.name, color = Color.White) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = PrimaryBlue)
+                )
             }
-
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                shape = MaterialTheme.shapes.large,
-                tonalElevation = 3.dp
+        ) { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(BackgroundLight)
+                    .padding(paddingValues)
+                    .padding(16.dp)
             ) {
-                when (currentDevice.type) {
-                    DeviceType.OUTLET -> OutletControl(
-                        device = currentDevice,
-                        onToggle = { viewModel.toggleDevice() }
-                    )
-                    DeviceType.MULTI_SWITCH -> MultiSwitchControl(
-                        device = currentDevice,
-                        onToggleSubSwitch = { id, status -> viewModel.toggleSubSwitch(id, status) }
-                    )
-                    DeviceType.SCHEDULED_APPLIANCE -> ScheduledApplianceControl(
-                        device = currentDevice,
-                        onToggle = { viewModel.toggleDevice() }
-                    )
-                    DeviceType.LIGHT_SCHEDULE -> LightScheduleControl(
-                        device = currentDevice,
-                        onSaveSchedule = { start, end, enabled -> viewModel.updateSchedule(start, end, enabled) }
-                    )
-                    DeviceType.CAMERA -> CameraControl(device = currentDevice)
+                if (liveDevice == null) {
+                    // Device was deleted from Firebase (e.g. floor cleanup) while
+                    // this screen was open — show that clearly instead of a stale
+                    // control that silently does nothing when toggled.
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("This device is no longer available.")
+                    }
+                    return@Column
+                }
+
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    shape = MaterialTheme.shapes.large,
+                    tonalElevation = 3.dp
+                ) {
+                    when (currentDevice.type) {
+                        DeviceType.OUTLET -> OutletControl(
+                            device = currentDevice,
+                            onToggle = { viewModel.toggleDevice() }
+                        )
+                        DeviceType.MULTI_SWITCH -> MultiSwitchControl(
+                            device = currentDevice,
+                            onToggleSubSwitch = { id, status -> viewModel.toggleSubSwitch(id, status) }
+                        )
+                        DeviceType.SCHEDULED_APPLIANCE -> ScheduledApplianceControl(
+                            device = currentDevice,
+                            onToggle = { viewModel.toggleDevice() }
+                        )
+                        DeviceType.LIGHT_SCHEDULE -> LightScheduleControl(
+                            device = currentDevice,
+                            onSaveSchedule = { start, end, enabled -> viewModel.updateSchedule(start, end, enabled) }
+                        )
+                        DeviceType.CAMERA -> CameraControl(device = currentDevice)
+                    }
                 }
             }
         }
