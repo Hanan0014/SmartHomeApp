@@ -12,8 +12,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.smarthome.app.data.repository.DeviceWithFloor
+import com.smarthome.app.ui.components.SmartHomeBackground
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -30,55 +34,65 @@ fun ReportsScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val sortMode by viewModel.sortMode.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Usage Reports") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+    SmartHomeBackground {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, titleContentColor = Color.White, navigationIconContentColor = Color.White, actionIconContentColor = Color.White),
+                    title = { Text("Usage Reports") },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        }
                     }
-                }
-            )
-        }
-    ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            // Sort toggle — most used vs. most recently toggled.
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterChip(
-                    selected = sortMode == ReportSort.MOST_USED,
-                    onClick = { viewModel.setSortMode(ReportSort.MOST_USED) },
-                    label = { Text("Most Used") }
-                )
-                FilterChip(
-                    selected = sortMode == ReportSort.RECENTLY_TOGGLED,
-                    onClick = { viewModel.setSortMode(ReportSort.RECENTLY_TOGGLED) },
-                    label = { Text("Recently Toggled") }
                 )
             }
+        ) { padding ->
+            Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+                // Sort toggle — most used vs. most recently toggled.
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = sortMode == ReportSort.MOST_USED,
+                        onClick = { viewModel.setSortMode(ReportSort.MOST_USED) },
+                        label = { Text("Most Used") }
+                    )
+                    FilterChip(
+                        selected = sortMode == ReportSort.RECENTLY_TOGGLED,
+                        onClick = { viewModel.setSortMode(ReportSort.RECENTLY_TOGGLED) },
+                        label = { Text("Recently Toggled") }
+                    )
+                }
 
-            when {
-                isLoading -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
+                when {
+                    isLoading -> {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
                     }
-                }
-                devices.isEmpty() -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("No devices yet. Add a floor and some devices to see usage data here.")
+                    devices.isEmpty() -> {
+                        Box(Modifier.fillMaxSize().padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "No devices yet. Add a floor and some devices to see usage data here.",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
-                }
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        items(devices, key = { it.device.id }) { entry ->
-                            DeviceUsageRow(entry)
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            items(devices, key = { it.device.id }) { entry ->
+                                DeviceUsageRow(entry)
+                            }
                         }
                     }
                 }
