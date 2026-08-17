@@ -22,3 +22,17 @@ firestore-debug.log
 # Keystore
 *.jks
 *.keystore
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Service account / credentials
+service-account.json
+*-service-account.json
+credentials.json
+
+# Private keys
+*.pem
+*.key
