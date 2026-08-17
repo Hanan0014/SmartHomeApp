@@ -19,10 +19,6 @@ class DashboardViewModel(
     private val _floors = MutableStateFlow<List<Floor>>(emptyList())
     val floors: StateFlow<List<Floor>> = _floors.asStateFlow()
 
-    // True until the first snapshot from Firebase arrives, OR until
-    // LOAD_TIMEOUT_MS passes with nothing -- whichever comes first. Without
-    // this timeout, a stalled/misconfigured Firebase connection spins the
-    // loading indicator forever with no feedback to the user.
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -37,7 +33,6 @@ class DashboardViewModel(
         _isLoading.value = true
         _loadError.value = null
 
-        // Real-time: any floor added/removed/renamed anywhere updates this list instantly.
         viewModelScope.launch {
             repository.observeFloors()
                 .collect {
@@ -47,10 +42,6 @@ class DashboardViewModel(
                 }
         }
 
-        // Safety-net timeout: if the collect{} above never fires (no error,
-        // just silence -- e.g. Realtime Database not enabled for this
-        // project, wrong region, or no network), stop the spinner and tell
-        // the user instead of leaving them staring at it indefinitely.
         viewModelScope.launch {
             delay(LOAD_TIMEOUT_MS)
             if (_isLoading.value) {

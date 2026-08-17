@@ -30,8 +30,6 @@ fun MultiSwitchControl(
         Spacer(modifier = Modifier.height(8.dp))
 
         if (device.subSwitches.isEmpty()) {
-            // Phase 7 edge case: a multi-switch unit with zero configured
-            // sub-switches — shouldn't show a blank list with no explanation.
             Spacer(modifier = Modifier.height(12.dp))
             Text(text = "No sub-switches configured for this unit.")
             return

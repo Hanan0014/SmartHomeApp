@@ -13,7 +13,6 @@ import java.time.format.DateTimeParseException
 
 private val TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm")
 
-/** Phase 4 checklist: validate HH:mm input, show the next scheduled transition. */
 private fun isValidTime(value: String): Boolean =
     try {
         LocalTime.parse(value, TIME_FORMATTER)
@@ -30,8 +29,6 @@ private fun nextTransitionText(start: String?, end: String?, enabled: Boolean): 
     val startTime = LocalTime.parse(start, TIME_FORMATTER)
     val endTime = LocalTime.parse(end, TIME_FORMATTER)
 
-    // Figure out which edge comes next, handling the case where the window
-    // wraps past midnight (e.g. 22:00 -> 06:00).
     return if (now.isBefore(startTime)) {
         "Turns on at $start"
     } else if (now.isBefore(endTime) || endTime.isBefore(startTime)) {

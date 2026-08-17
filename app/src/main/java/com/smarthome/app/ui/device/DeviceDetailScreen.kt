@@ -28,9 +28,7 @@ fun DeviceDetailScreen(
     device: Device,
     onBack: () -> Unit
 ) {
-    // device.id is stable even though the object itself is a point-in-time
-    // snapshot from the floor plan list — the ViewModel below takes over
-    // observing live state keyed on that id.
+
     val viewModel: DeviceDetailViewModel = viewModel(
         key = device.id,
         factory = object : ViewModelProvider.Factory {
@@ -40,8 +38,6 @@ fun DeviceDetailScreen(
         }
     )
 
-    // Live device from Firebase; falls back to the snapshot passed in until
-    // the first Firebase read lands, so the screen never shows blank.
     val liveDevice by viewModel.device.collectAsState()
     val currentDevice = liveDevice ?: device
 
@@ -67,9 +63,6 @@ fun DeviceDetailScreen(
                     .padding(16.dp)
             ) {
                 if (liveDevice == null) {
-                    // Device was deleted from Firebase (e.g. floor cleanup) while
-                    // this screen was open — show that clearly instead of a stale
-                    // control that silently does nothing when toggled.
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("This device is no longer available.")
                     }

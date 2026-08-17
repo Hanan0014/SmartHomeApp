@@ -25,10 +25,7 @@ private object Routes {
     const val REPORTS = "reports"
 }
 
-/**
- * In-memory selection holders. For a mini-project this avoids the overhead
- * of Gson-serializing complex objects into nav route arguments.
- */
+
 private var selectedFloor: Floor? = null
 private var selectedRoom: Room? = null
 private var selectedDevice: Device? = null

@@ -18,9 +18,6 @@ import com.smarthome.app.ui.theme.StatusOn
 
 @Composable
 fun OutletControl(device: Device, onToggle: () -> Unit) {
-    // Reads status straight from the live `device` passed down from
-    // DeviceDetailScreen — no local mutable state, so a toggle from another
-    // phone or the backend safety worker shows up here immediately too.
     val isOn = device.status == DeviceStatus.ON
 
     Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
@@ -74,10 +71,6 @@ fun OutletControl(device: Device, onToggle: () -> Unit) {
                 ) {
                     Text(text = "Power")
                     Switch(
-                        // Toggle is disabled if the device is reporting ERROR or
-                        // DISCONNECTED — matches Phase 7's "display distinctly" goal;
-                        // there's no point letting the user flip a switch that isn't
-                        // actually connected.
                         enabled = device.status == DeviceStatus.ON || device.status == DeviceStatus.OFF,
                         checked = isOn,
                         onCheckedChange = { onToggle() }
