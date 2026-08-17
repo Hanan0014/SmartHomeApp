@@ -1,189 +1,144 @@
 # Smart Home Monitoring & Control System
 
-A native Android mobile client for monitoring and controlling a simulated
-smart home — multiple floors, heterogeneous device types, real-time
-cloud sync, and automated safety enforcement.
+**SCS 3311 — Mobile Application Design & Development — Mini-Project**
 
-Built for **SCS 3311: Mobile Application Design & Development** (Mini Project).
-
-**Team:** Hanan · Santhosh · Sivajan
+A mobile Smart Home Monitoring and Control system built with **Kotlin + Jetpack Compose**, backed by **Firebase Realtime Database**, with a companion **web-based Hardware Simulator**. Users manage multiple house floors, define rooms within each floor (Hall, Kitchen, Bathroom, etc.), and place five different types of smart devices inside those rooms — all synchronized in real time across every connected client.
 
 ---
 
-## Table of Contents
+## ✨ Features
 
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Data Model](#data-model-firebase-rtdb)
-- [Tech Stack](#tech-stack)
-- [Getting Started](#getting-started)
-- [Project Structure](#project-structure)
-- [Team Workflow](#team-workflow)
-- [Deliverables Checklist](#deliverables-checklist-per-spec)
-- [Known Limitations](#known-limitations)
+- **Multi-floor management** — add, rename, and delete floors, each with a customizable abstract grid.
+- **Room definition** — mark out a room's shape and position by selecting cells on a floor's grid; the room automatically gets its own device-placement grid sized to match.
+- **Five device profiles**, each with type-specific controls:
+  | Type | Behavior |
+  |---|---|
+  | 🔌 Outlet | Simple ON/OFF toggle |
+  | 🎛️ Multi-Switch | 2, 3, or 5 independently addressable sub-switches |
+  | 👕 Scheduled Appliance | Configurable max on-duration, live countdown, safety cutoff |
+  | 💡 Light Schedule | Automatic ON/OFF within a configured daily time window |
+  | 📷 Camera | Mock snapshot rendering, or a clear "no stream configured" state |
+- **Real-time bidirectional sync** — any change made on any client (another phone, or the web simulator) reflects everywhere else within 1–2 seconds, no manual refresh.
+- **Safety cutoff** — automatically turns off a Scheduled Appliance that exceeds its configured max duration (see [Known Limitations](#-known-limitations) for how this is currently enforced).
+- **Usage reporting** — a Reports screen showing devices sorted by most-used or most-recently-toggled.
+- **Companion web Hardware Simulator** — visualizes the same floors/rooms/devices live, with simulator-only controls for forcing ERROR/DISCONNECTED states and fast-forwarding the safety cutoff for testing.
+- **Robust error/edge-case handling** — distinct ERROR/DISCONNECTED states, graceful offline behavior, empty states throughout, and input validation on every creation form.
 
 ---
 
-## Overview
+## 🏗️ Architecture
 
-The app lets a user manage multiple house floors, each with devices placed
-on an abstract grid overlaid on a floor-plan image. Five distinct device
-profiles are supported, each with its own behavior:
-
-| Device Type | Behavior |
-|---|---|
-| **Outlet** | Simple ON/OFF power supply |
-| **Multi-Switch** | A gang-box unit with several independently addressable switches |
-| **Scheduled Appliance** | Fire-hazard-prone devices (e.g. irons) with a server-enforced max on-duration |
-| **Light Schedule** | Bulbs that auto-toggle on a configured time window |
-| **Camera** | Mock snapshot/stream display, no toggle |
-
-State changes sync bidirectionally and instantly: a toggle from this app,
-another device, or the backend safety-cutoff worker reflects everywhere
-within seconds — no manual refresh required.
-
-## Architecture
-
-**Mobile app** (`app/`) — Kotlin + Jetpack Compose.
-Dashboard → Floor Plan (grid overlay) → Device Detail, with type-specific
-UI for each of the five device profiles above.
-
-**Realtime sync** — `SmartHomeRepository` wraps Firebase Realtime Database
-listeners (`addValueEventListener`) and exposes them as Kotlin `Flow`s,
-collected by Compose via `collectAsState()`. Any change — from this app,
-a teammate's phone, or the backend — pushes to every connected screen
-automatically.
-
-**Backend safety cutoff** (`functions/`) — Firebase Cloud Functions:
-
-| Function | Trigger | Purpose |
-|---|---|---|
-| `safetyCutoffWatcher` | Fires on every device write | If a safety-critical appliance has been ON past its `maxOnDurationSeconds`, force-flips it OFF and sends an FCM push alert |
-| `sweepOverdueDevices` | Scheduled, every minute | Backstop sweep in case no write triggers the watcher above |
-| `lightScheduleSweep` | Scheduled, every minute | Auto-toggles `LIGHT_SCHEDULE` devices per their configured time window |
-
-## Data Model (Firebase RTDB)
+MVVM + Repository pattern.
 
 ```
-/floors/{floorId}
-    name, planImageName, gridCols, gridRows, order
-    /devices/{deviceId}
-        name, type, status, gridX, gridY
-        subSwitches: [{id, label, status}]           // MULTI_SWITCH
-        maxOnDurationSeconds, turnedOnAtEpochMs       // SCHEDULED_APPLIANCE
-        scheduleStart, scheduleEnd, scheduleEnabled   // LIGHT_SCHEDULE
-        snapshotUrl, streamUri                        // CAMERA
-        lastToggledAtEpochMs, totalOnTimeSeconds      // reporting
+Compose UI  →  ViewModel  →  Repository (SmartHomeRepository)  →  Firebase Realtime Database
 ```
 
-## Tech Stack
+Data hierarchy: **Floor → Room → Device**, mirroring the physical structure of a house.
+
+---
+
+## 🛠️ Tech Stack
 
 | Layer | Technology |
 |---|---|
-| Mobile app | Kotlin, Jetpack Compose |
+| Mobile client | Kotlin, Jetpack Compose (Material 3) |
 | Navigation | Jetpack Navigation Compose |
-| Backend / database | Firebase Realtime Database (free Spark tier) |
-| Server-side logic | Firebase Cloud Functions |
-| Push notifications | Firebase Cloud Messaging (FCM) |
-| Version control | Git + GitHub |
+| Async / reactive | Kotlin Coroutines & Flow |
+| Image loading | Coil |
+| Backend | Firebase Realtime Database (`asia-southeast1`) |
+| Push notifications | Firebase Cloud Messaging |
+| Backend automation (written, undeployed) | Firebase Cloud Functions |
+| Hardware simulator | HTML / CSS / JavaScript, Firebase JS SDK v10 |
+| Version control | Git & GitHub |
 
-## Getting Started
+---
+
+## 📁 Project Structure
+
+```
+SmartHomeApp/
+├── app/                          # Android app module
+│   └── src/main/java/com/smarthome/app/
+│       ├── data/
+│       │   ├── model/            # Floor, Room, Device, DeviceEnums
+│       │   └── repository/       # SmartHomeRepository (all Firebase access)
+│       └── ui/
+│           ├── dashboard/        # Floor list
+│           ├── floorplan/        # Floor grid, room definition, Room screen
+│           ├── device/           # Per-device-type detail screens
+│           ├── reports/          # Usage reporting
+│           ├── navigation/       # NavGraph
+│           └── theme/            # Material 3 theme
+├── functions/                    # Firebase Cloud Functions (written, undeployed — see below)
+├── simulator/                    # Web Hardware Simulator
+│   ├── index.html
+│   ├── style.css
+│   └── app.js
+└── docs/
+    └── TECHNICAL_DOCUMENTATION.md
+```
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
+- Android Studio (Koala or later), JDK 17
+- An Android emulator or physical device, API 26+
+- A Firebase project with **Realtime Database** and **Cloud Messaging** enabled
 
-- Android Studio (Koala 2024.1 or newer)
-- JDK 17 (bundled with recent Android Studio)
-- An emulator image, API level 26+
+### Setup
+1. Clone this repository.
+2. Open the project root in Android Studio and let Gradle sync.
+3. Download your Firebase project's `google-services.json` and place it in `app/` (this file is intentionally **not** committed — see `.gitignore`).
+4. Confirm the database region in `SmartHomeRepository.kt` matches your Firebase project's actual Realtime Database URL:
+   ```kotlin
+   FirebaseDatabase.getInstance("https://<your-project>-default-rtdb.<your-region>.firebasedatabase.app")
+   ```
+   ⚠️ Omitting the explicit region URL causes the app to hang silently on every read/write if your database isn't in Firebase's default `us-central1` region.
+5. Run the app on an emulator or device.
 
-### 1. Clone the repo
-
+### Running the Hardware Simulator
 ```bash
-git clone https://github.com/<org-or-username>/smart-home-android.git
-cd smart-home-android
+cd simulator
+python -m http.server 8000
 ```
+Then open `http://localhost:8000`. Before first use, fill in your Firebase web app config in `simulator/app.js` (get it from Firebase Console → Project Settings → Your apps → Web app, or copy from `google-services.json`).
 
-`google-services.json` is already committed to this repo (see
-[Known Limitations](#known-limitations) for why), so no manual Firebase
-file transfer is needed between teammates.
+---
 
-### 2. Open in Android Studio
+## ⚠️ Known Limitations
 
-Open the cloned folder as the project root, let Gradle sync complete, then
-select an emulator (API 26+) and hit **Run**. The app should launch to the
-Dashboard screen.
+- **Safety cutoff runs client-side, not as a true backend process.** Our Firebase project is on the free **Spark** tier, which does not support deploying Cloud Functions without enabling billing — a deliberate team decision for this student project. The intended backend implementation is fully written in `functions/index.js` (`safetyCutoffWatcher`, `sweepOverdueDevices`, `lightScheduleSweep`) but is not deployed. As a disclosed fallback, `FloorPlanViewModel` performs the same checks locally every 5 seconds while a relevant screen is open. Full details in [`docs/TECHNICAL_DOCUMENTATION.md`](docs/TECHNICAL_DOCUMENTATION.md).
+- **No user authentication.** Not required by the project spec; the app is designed as a single shared household system rather than multi-tenant.
+- **Firebase security rules remain open** (`read`/`write: true`) for development and testing convenience.
 
-### 3. Firebase project access
+---
 
-The team's shared Firebase project already has Realtime Database and Cloud
-Messaging enabled. If you need console access (e.g. to inspect data or
-manually add test devices), ask Hanan for an invite to the Firebase project.
+## 🧪 Testing
 
-### 4. Deploy backend changes (only if modifying Cloud Functions)
+Manual test coverage includes: floor/room/device CRUD, per-device-type toggles, cross-device real-time sync, cold-start state reload, safety cutoff (via manual timestamp manipulation and the simulator's "skip to near-cutoff" control), offline behavior, and input validation. See [`docs/TECHNICAL_DOCUMENTATION.md`](docs/TECHNICAL_DOCUMENTATION.md) Section 12 for the full test case table.
 
-```bash
-cd functions
-npm install
-firebase deploy --only functions,database
-```
+---
 
-## Project Structure
+## 📄 Documentation
 
-```
-app/src/main/java/com/smarthome/app/
-├── data/
-│   ├── model/          Device, Floor, enums
-│   ├── repository/      SmartHomeRepository (Firebase RTDB access)
-│   └── messaging/        FCM notification handling
-└── ui/
-    ├── dashboard/        Floor list screen
-    ├── floorplan/        Grid overlay + device placement
-    ├── device/           Per-device-type detail screens
-    ├── navigation/        NavGraph
-    └── theme/            Colors, typography
+Full technical report — architecture diagram, data model, Firebase schema, feature-by-feature implementation notes, and known limitations — is in [[Project Report]](https://docs.google.com/document/d/1OqBvKyQPS9zzWicKQ6DJYb-BJLdQPwPpPpvWmE8Az-c/edit?usp=sharing)
 
-functions/                Firebase Cloud Functions (safety cutoff, schedules)
-docs/                     Technical documentation
-plan.md                   Phase-by-phase development plan
-PROJECT_OVERVIEW.md       Full project scope and stack rationale
-```
+---
 
-## Team Workflow
+## 👥 Team
 
-Work is split across three parallel feature branches, one per screen area:
+| Member | Contribution |
+|---|---|
+| **Hanan** | Real-Time Sync Verification, Reporting/Usage screen, Error & Edge-Case Handling, Firebase configuration and region-fix debugging |
+| **Santhosh** | Initial Floor Plan scaffold, Floor Plan UI, testing the whole app, report documentation, UI contributions |
+| **Sivajan** | Initial Device Detail scaffold, overall system UI, Web Hardware Simulator |
 
-| Branch | Scope | Owner |
-|---|---|---|
-| `feature/dashboard` | Dashboard / floor list | Hanan |
-| `feature/floorplan` | Floor plan grid + device placement | Santhosh |
-| `feature/device-detail` | Per-device-type detail screens | Sivajan |
+---
 
-Each branch merges into `main` via pull request, one at a time, to keep
-conflicts manageable — `ui/navigation/NavGraph.kt` is the file most likely
-to be touched by more than one branch, so coordinate before merging changes
-to it. Full phase breakdown, ownership, and target timeline are in
-[`plan.md`](./plan.md).
+## 📦 Deliverables
 
-## Deliverables Checklist (per module spec)
-
-- [x] Source code (this repo)
-- [ ] Final APK link (add after building a signed release)
-- [ ] Technical documentation — [`docs/TECHNICAL_DOCUMENTATION.md`](./docs/TECHNICAL_DOCUMENTATION.md)
-- [ ] Demo video (≤ 25 min, all members present, contributions stated)
-
-## Known Limitations
-
-These are deliberate, documented trade-offs for a coursework timeline —
-worth restating in the technical documentation, not hiding:
-
-- **`google-services.json` is committed to this repo**, rather than
-  git-ignored, so all three team members get working Firebase access on
-  clone without manual file sharing. This is acceptable here because
-  Firebase access control is enforced by **Database Rules**, not by
-  keeping this file private.
-- **Realtime Database rules currently allow open read/write** for ease of
-  development. This is fine for a coursework demo but would need proper
-  authentication-based rules before any real-world deployment.
-- **No companion hardware simulator is implemented in this milestone** —
-  the team chose to prioritize the mobile client. The RTDB schema above is
-  intentionally simulator-agnostic, so one could be added later without
-  changing the app.
+- **Source code:** [Project Repo](https://github.com/Hanan0014/SmartHomeApp)
+- **APK:** Mobile Application APK
